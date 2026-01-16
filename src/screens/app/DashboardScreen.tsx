@@ -1,27 +1,23 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-} from "react-native";
+import { Card, LoadingSpinner, ProgressRing, StatBox } from "@components/common";
+import { COLORS, MEAL_TYPES } from "@constants/index";
 import { useAuth } from "@context/AuthContext";
 import { useDailyFoodLogs } from "@hooks/useNutrition";
 import { useDailyWorkoutLogs } from "@hooks/useWorkouts";
-import { Card, StatBox, ProgressRing, LoadingSpinner } from "@components/common";
+import { useNavigation } from "@react-navigation/native";
 import { formatDate } from "@utils/dateUtils";
-import { COLORS, MEAL_TYPES } from "@constants/index";
+import React, { useState } from "react";
+import {
+    RefreshControl,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
-interface DashboardScreenProps {
-  onNavigateToFood?: () => void;
-  onNavigateToWorkout?: () => void;
-}
+interface DashboardScreenProps {}
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({
-  onNavigateToFood,
-  onNavigateToWorkout,
-}) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = () => {
+  const navigation = useNavigation();
   const { user, profile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [date] = useState(formatDate(new Date()));
@@ -187,7 +183,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         }}
       >
         <TouchableOpacity
-          onPress={onNavigateToFood}
+          onPress={() => navigation.navigate("Food" as never)}
           style={{
             flex: 1,
             backgroundColor: COLORS.primary,
@@ -208,7 +204,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={onNavigateToWorkout}
+          onPress={() => navigation.navigate("Workout" as never)}
           style={{
             flex: 1,
             backgroundColor: COLORS.accent,

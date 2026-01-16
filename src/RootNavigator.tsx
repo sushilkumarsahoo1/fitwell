@@ -1,22 +1,22 @@
-import React from "react";
+import { COLORS } from "@constants/index";
+import { useAuth } from "@context/AuthContext";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { useAuth } from "@context/AuthContext";
+import {
+    DashboardScreen,
+    FoodLoggingScreen,
+    ProgressScreen,
+    SettingsScreen,
+    WorkoutLoggingScreen,
+} from "@screens/app";
 import { SignInScreen, SignUpScreen } from "@screens/auth";
 import {
-  ProfileSetupScreen,
-  FitnessGoalScreen,
-  ActivityLevelScreen,
+    ActivityLevelScreen,
+    FitnessGoalScreen,
+    ProfileSetupScreen,
 } from "@screens/onboarding";
-import {
-  DashboardScreen,
-  FoodLoggingScreen,
-  WorkoutLoggingScreen,
-  ProgressScreen,
-  SettingsScreen,
-} from "@screens/app";
-import { COLORS } from "@constants/index";
+import React from "react";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -105,8 +105,6 @@ const OnboardingStack = () => {
 };
 
 const AppStack = () => {
-  const [activeTab, setActiveTab] = React.useState<string>("dashboard");
-
   return (
     <Tab.Navigator
       screenOptions={{
@@ -134,14 +132,8 @@ const AppStack = () => {
             <Text style={{ fontSize: 20, color }}>🏠</Text>
           ),
         }}
-      >
-        {() => (
-          <DashboardScreen
-            onNavigateToFood={() => setActiveTab("food")}
-            onNavigateToWorkout={() => setActiveTab("workout")}
-          />
-        )}
-      </Tab.Screen>
+        component={DashboardScreen}
+      />
 
       <Tab.Screen
         name="Food"
@@ -151,9 +143,8 @@ const AppStack = () => {
             <Text style={{ fontSize: 20, color }}>🍎</Text>
           ),
         }}
-      >
-        {() => <FoodLoggingScreen onSuccess={() => setActiveTab("dashboard")} />}
-      </Tab.Screen>
+        component={FoodLoggingScreen}
+      />
 
       <Tab.Screen
         name="Workout"
@@ -163,11 +154,8 @@ const AppStack = () => {
             <Text style={{ fontSize: 20, color }}>💪</Text>
           ),
         }}
-      >
-        {() => (
-          <WorkoutLoggingScreen onSuccess={() => setActiveTab("dashboard")} />
-        )}
-      </Tab.Screen>
+        component={WorkoutLoggingScreen}
+      />
 
       <Tab.Screen
         name="Progress"
@@ -246,4 +234,5 @@ export const RootNavigator: React.FC = () => {
   );
 };
 
-import { View, Text } from "react-native";
+import { Text, View } from "react-native";
+

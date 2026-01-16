@@ -1,29 +1,27 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-} from "react-native";
+import { Button, Card, LoadingSpinner, TextInput } from "@components/common";
+import { COLORS, WORKOUT_TYPES } from "@constants/index";
 import { useAuth } from "@context/AuthContext";
 import {
-  useAddWorkoutLog,
-  useDailyWorkoutLogs,
-  useWorkoutTemplates,
-  useDeleteWorkoutLog,
+    useAddWorkoutLog,
+    useDailyWorkoutLogs,
+    useDeleteWorkoutLog,
+    useWorkoutTemplates,
 } from "@hooks/useWorkouts";
-import { Card, Button, TextInput, LoadingSpinner } from "@components/common";
-import { WORKOUT_TYPES, COLORS } from "@constants/index";
+import { useNavigation } from "@react-navigation/native";
 import { formatDate } from "@utils/dateUtils";
+import React, { useState } from "react";
+import {
+    Modal,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
-interface WorkoutLoggingScreenProps {
-  onSuccess?: () => void;
-}
+interface WorkoutLoggingScreenProps {}
 
-export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = ({
-  onSuccess,
-}) => {
+export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const [date] = useState(formatDate(new Date()));
   const [selectedType, setSelectedType] = useState<string>("cardio");
@@ -58,7 +56,7 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = ({
       setCaloriesBurned("");
       setNotes("");
       setShowWorkoutModal(false);
-      onSuccess?.();
+      navigation.navigate("Dashboard" as never);
     } catch (error) {
       console.error("Add workout error:", error);
     } finally {

@@ -1,30 +1,27 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  FlatList,
-  Modal,
-} from "react-native";
+import { Button, Card, LoadingSpinner, TextInput } from "@components/common";
+import { COLORS, FOOD_CATEGORIES, MEAL_TYPES } from "@constants/index";
 import { useAuth } from "@context/AuthContext";
 import {
-  useAddFoodLog,
-  useDailyFoodLogs,
-  useFoodDatabase,
-  useDeleteFoodLog,
+    useAddFoodLog,
+    useDailyFoodLogs,
+    useDeleteFoodLog,
+    useFoodDatabase,
 } from "@hooks/useNutrition";
-import { Card, Button, TextInput, LoadingSpinner } from "@components/common";
-import { MEAL_TYPES, FOOD_CATEGORIES, COLORS } from "@constants/index";
+import { useNavigation } from "@react-navigation/native";
 import { formatDate } from "@utils/dateUtils";
+import React, { useState } from "react";
+import {
+    Modal,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
+} from "react-native";
 
-interface FoodLoggingScreenProps {
-  onSuccess?: () => void;
-}
+interface FoodLoggingScreenProps {}
 
-export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = ({
-  onSuccess,
-}) => {
+export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const [date] = useState(formatDate(new Date()));
   const [selectedMeal, setSelectedMeal] = useState<string>("breakfast");
@@ -69,7 +66,7 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = ({
 
       setQuantity("1");
       setShowFoodModal(false);
-      onSuccess?.();
+      navigation.navigate("Dashboard" as never);
     } catch (error) {
       console.error("Add food error:", error);
     } finally {
