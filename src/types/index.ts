@@ -42,14 +42,18 @@ export interface FoodLog {
   user_id: string;
   food_id: string;
   quantity: number;
+  quantity_unit?: string;
   meal_type: "breakfast" | "lunch" | "dinner" | "snack";
   date: string;
   calories: number;
   protein_g: number;
   carbs_g: number;
   fats_g: number;
+  food_name?: string;
+  fdc_id?: string;
   created_at: string;
   updated_at: string;
+  foods?: Food; // Nested foods relationship from join
 }
 
 export interface DailyNutrition {
@@ -168,7 +172,7 @@ export interface MonthlyReport extends WeeklyReport {
 }
 
 // UI State Types
-export type AsyncState<T> = 
+export type AsyncState<T> =
   | { status: "idle" }
   | { status: "pending" }
   | { status: "success"; data: T }

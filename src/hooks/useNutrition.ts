@@ -1,6 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as foodService from "@services/foodService";
 import { supabase } from "@services/supabase";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserProfile } from "@types/index";
+import { recordCacheHit, recordCacheMiss } from "@utils/foodUtils";
 
 export const useProfile = (userId: string) => {
   return useQuery({
@@ -44,13 +46,33 @@ export const useDailyFoodLogs = (userId: string, date: string) => {
   return useQuery({
     queryKey: ["foodLogs", userId, date],
     queryFn: async () => {
+      console.log(`[useNutrition] Fetching food logs for ${userId} on ${date}`);
+
       const { data, error } = await supabase
         .from("food_logs")
         .select("*, foods(*)")
         .eq("user_id", userId)
-        .eq("date", date);
+        .eq("date", date)
+        .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error(`[useNutrition] Error fetching food logs:`, error);
+        throw error;
+      }
+
+      console.log(
+        `[useNutrition] Fetched ${data?.length || 0} food logs`,
+        data,
+      );
+
+      // Verify data structure
+      if (data && data.length > 0) {
+        console.log(
+          "[useNutrition] Sample food log:",
+          JSON.stringify(data[0], null, 2),
+        );
+      }
+
       return data || [];
     },
     enabled: !!userId && !!date,
@@ -65,7 +87,7 @@ export const useAddFoodLog = () => {
       foodLog: Omit<
         Parameters<typeof supabase.from>[0],
         "id" | "created_at" | "updated_at"
-      >
+      >,
     ) => {
       const { data, error } = await supabase
         .from("food_logs")
@@ -140,9 +162,7 @@ export const useAddFavoriteFood = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      variables: { userId: string; foodId: string }
-    ) => {
+    mutationFn: async (variables: { userId: string; foodId: string }) => {
       const { error } = await supabase.from("favorite_foods").insert([
         {
           user_id: variables.userId,
@@ -162,9 +182,7 @@ export const useRemoveFavoriteFood = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      variables: { userId: string; foodId: string }
-    ) => {
+    mutationFn: async (variables: { userId: string; foodId: string }) => {
       const { error } = await supabase
         .from("favorite_foods")
         .delete()
@@ -175,6 +193,118 @@ export const useRemoveFavoriteFood = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["favoriteFoods"] });
+    },
+  });
+};
+/**
+ * Search foods using USDA FoodData Central API
+ * Results are cached locally for 48 hours
+ */
+export const useSearchFoods = (query: string) => {
+  return useQuery({
+    queryKey: ["searchFoods", query],
+    queryFn: async () => {
+      if (!query.trim()) {
+        return [];
+      }
+
+      try {
+        const results = await foodService.searchFoods(query, 1, 20);
+        recordCacheHit(); // Track cache statistics
+        return results;
+      } catch (error) {
+        recordCacheMiss();
+        console.error("Error searching foods:", error);
+        throw error;
+      }
+    },
+    enabled: !!query.trim(),
+    staleTime: 1000 * 60 * 30, // 30 minutes
+  });
+};
+
+/**
+ * Get detailed nutrition info for a specific USDA food
+ */
+export const useGetFoodDetails = (fdcId: string | null) => {
+  return useQuery({
+    queryKey: ["foodDetails", fdcId],
+    queryFn: async () => {
+      if (!fdcId) return null;
+
+      try {
+        const details = await foodService.getFoodDetails(fdcId);
+        recordCacheHit();
+        return details;
+      } catch (error) {
+        recordCacheMiss();
+        console.error("Error fetching food details:", error);
+        throw error;
+      }
+    },
+    enabled: !!fdcId,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+};
+
+/**
+ * Log food from USDA API to database
+ * Automatically calculates macros based on quantity
+ */
+export const useLogUSDAFood = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variables: {
+      userId: string;
+      foodName: string;
+      fdcId: string;
+      quantity: number;
+      quantityUnit: string;
+      mealType: "breakfast" | "lunch" | "dinner" | "snack";
+      date: string;
+      nutrition: {
+        calories: number;
+        protein_g: number;
+        carbs_g: number;
+        fats_g: number;
+      };
+    }) => {
+      return await foodService.logFoodToDatabase({
+        user_id: variables.userId,
+        food_name: variables.foodName,
+        fdc_id: variables.fdcId,
+        quantity: variables.quantity,
+        quantity_unit: variables.quantityUnit,
+        meal_type: variables.mealType,
+        date: variables.date,
+        calories: variables.nutrition.calories,
+        protein_g: variables.nutrition.protein_g,
+        carbs_g: variables.nutrition.carbs_g,
+        fats_g: variables.nutrition.fats_g,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["foodLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["dailyStats"] });
+    },
+  });
+};
+
+/**
+ * Clear USDA food cache (for debugging or manual refresh)
+ */
+export const useClearFoodCache = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      await foodService.clearFoodCache();
+    },
+    onSuccess: () => {
+      // Invalidate all food-related queries
+      queryClient.invalidateQueries({ queryKey: ["searchFoods"] });
+      queryClient.invalidateQueries({ queryKey: ["foodDetails"] });
     },
   });
 };

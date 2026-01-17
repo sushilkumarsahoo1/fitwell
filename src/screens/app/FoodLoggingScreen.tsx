@@ -2,42 +2,61 @@ import { Button, Card, LoadingSpinner, TextInput } from "@components/common";
 import { COLORS, FOOD_CATEGORIES, MEAL_TYPES } from "@constants/index";
 import { useAuth } from "@context/AuthContext";
 import {
-    useAddFoodLog,
-    useDailyFoodLogs,
-    useDeleteFoodLog,
-    useFoodDatabase,
+  useAddFoodLog,
+  useDailyFoodLogs,
+  useDeleteFoodLog,
+  useFoodDatabase,
+  useGetFoodDetails,
+  useLogUSDAFood,
+  useSearchFoods,
 } from "@hooks/useNutrition";
 import { useNavigation } from "@react-navigation/native";
+import { extractNutrition } from "@services/foodService";
 import { formatDate } from "@utils/dateUtils";
-import React, { useState } from "react";
+import { convertToGrams, type QuantityUnit } from "@utils/foodUtils";
+import React, { useMemo, useState } from "react";
 import {
-    Modal,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface FoodLoggingScreenProps {}
 
+type FoodSource = "database" | "usda";
+
 export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [date] = useState(formatDate(new Date()));
   const [selectedMeal, setSelectedMeal] = useState<string>("breakfast");
   const [selectedCategory, setSelectedCategory] = useState<string>("indian");
-  const [quantity, setQuantity] = useState("1");
+  const [quantity, setQuantity] = useState("100");
+  const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>("g");
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [foodSource, setFoodSource] = useState<FoodSource>("database");
+  const [usedaSearch, setUSDASearch] = useState("");
+  const [selectedFdcId, setSelectedFdcId] = useState<string | null>(null);
 
+  // Hook data fetching
   const { data: foodLogs = [], isLoading: logsLoading } = useDailyFoodLogs(
     user?.id || "",
-    date
+    date,
   );
-  const { data: foods = [], isLoading: foodsLoading } = useFoodDatabase(
-    selectedCategory
-  );
+  const { data: foods = [], isLoading: foodsLoading } =
+    useFoodDatabase(selectedCategory);
+  const { data: usdaResults = [], isLoading: usdaLoading } =
+    useSearchFoods(usedaSearch);
+  const { data: selectedFoodDetails, isLoading: detailsLoading } =
+    useGetFoodDetails(selectedFdcId);
+
   const addFoodLog = useAddFoodLog();
+  const logUSDAFood = useLogUSDAFood();
   const deleteFoodLog = useDeleteFoodLog();
 
   const handleAddFood = async (foodId: string) => {
@@ -64,11 +83,73 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
         fats_g: totalFats,
       } as any);
 
-      setQuantity("1");
+      setQuantity("100");
+      setQuantityUnit("g");
       setShowFoodModal(false);
-      navigation.navigate("Dashboard" as never);
     } catch (error) {
       console.error("Add food error:", error);
+      Alert.alert("Error", "Failed to log food");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Handle logging USDA food with nutrition extraction
+   */
+  const handleAddUSDAFood = async () => {
+    if (!selectedFoodDetails || !user || !quantity) {
+      Alert.alert("Error", "Please select a food and enter quantity");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log("[FoodLoggingScreen] Starting to log USDA food:", {
+        food: selectedFoodDetails.description,
+        fdcId: selectedFoodDetails.fdcId,
+        quantity,
+        quantityUnit,
+        meal: selectedMeal,
+      });
+
+      // Convert quantity to grams for USDA API (which uses per-100g)
+      const quantityInGrams = convertToGrams(
+        parseFloat(quantity),
+        quantityUnit,
+      );
+
+      console.log("[FoodLoggingScreen] Quantity in grams:", quantityInGrams);
+
+      // Extract nutrition from USDA response
+      const nutrition = extractNutrition(selectedFoodDetails, quantityInGrams);
+
+      console.log("[FoodLoggingScreen] Extracted nutrition:", nutrition);
+
+      // Log to database
+      await logUSDAFood.mutateAsync({
+        userId: user.id,
+        foodName: selectedFoodDetails.description,
+        fdcId: selectedFoodDetails.fdcId,
+        quantity: parseFloat(quantity),
+        quantityUnit,
+        mealType: selectedMeal as "breakfast" | "lunch" | "dinner" | "snack",
+        date,
+        nutrition,
+      });
+
+      console.log("[FoodLoggingScreen] Food logged successfully!");
+      Alert.alert("Success", "Food logged successfully!");
+      setQuantity("100");
+      setQuantityUnit("g");
+      setUSDASearch("");
+      setSelectedFdcId(null);
+      setShowFoodModal(false);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      console.error("[FoodLoggingScreen] USDA food log error:", errorMessage);
+      Alert.alert("Error", `Failed to log USDA food: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -79,21 +160,40 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
       await deleteFoodLog.mutateAsync(logId);
     } catch (error) {
       console.error("Delete error:", error);
+      Alert.alert("Error", "Failed to delete food log");
     }
   };
+
+  // Calculate total nutrition for display
+  const totalNutrition = useMemo(() => {
+    return foodLogs.reduce(
+      (acc, log) => ({
+        calories: acc.calories + (log.calories || 0),
+        protein_g: acc.protein_g + (log.protein_g || 0),
+        carbs_g: acc.carbs_g + (log.carbs_g || 0),
+        fats_g: acc.fats_g + (log.fats_g || 0),
+      }),
+      { calories: 0, protein_g: 0, carbs_g: 0, fats_g: 0 },
+    );
+  }, [foodLogs]);
 
   if (logsLoading) {
     return <LoadingSpinner />;
   }
 
   return (
-    <>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: "#f5f5f5" }}
+      edges={["top"]}
+    >
       <ScrollView
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingVertical: 16,
-          paddingBottom: 20,
+          padding: 16,
+          paddingBottom: 200,
         }}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
       >
         <Text
           style={{
@@ -105,6 +205,89 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
         >
           Log Food
         </Text>
+
+        {/* Daily Summary */}
+        <Card title="Today's Nutrition" style={{ marginBottom: 16 }}>
+          <View style={{ gap: 8 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text style={{ fontSize: 12, color: COLORS.neutral.text }}>
+                Calories:
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: COLORS.primary,
+                }}
+              >
+                {totalNutrition.calories} /{" "}
+                {profile?.daily_calorie_target || 2000}
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text style={{ fontSize: 12, color: COLORS.neutral.text }}>
+                Protein:
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: COLORS.success,
+                }}
+              >
+                {totalNutrition.protein_g.toFixed(1)}g
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text style={{ fontSize: 12, color: COLORS.neutral.text }}>
+                Carbs:
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: COLORS.warning,
+                }}
+              >
+                {totalNutrition.carbs_g.toFixed(1)}g
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text style={{ fontSize: 12, color: COLORS.neutral.text }}>
+                Fats:
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: COLORS.neutral.textDark,
+                }}
+              >
+                {totalNutrition.fats_g.toFixed(1)}g
+              </Text>
+            </View>
+          </View>
+        </Card>
 
         {/* Meal Type Selector */}
         <Card title="Select Meal" style={{ marginBottom: 16 }}>
@@ -145,9 +328,15 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
 
         {/* Food List */}
         {MEAL_TYPES.map((mealType) => {
-          const mealLogs = foodLogs.filter((log) => log.meal_type === mealType.id);
+          const mealLogs = foodLogs.filter(
+            (log) => log.meal_type === mealType.id,
+          );
           return (
-            <Card key={mealType.id} title={mealType.label} style={{ marginBottom: 16 }}>
+            <Card
+              key={mealType.id}
+              title={mealType.label}
+              style={{ marginBottom: 16 }}
+            >
               {mealLogs.length === 0 ? (
                 <Text
                   style={{
@@ -180,7 +369,7 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
                           color: COLORS.neutral.textDark,
                         }}
                       >
-                        {log.foods?.name}
+                        {log.food_name || log.foods?.name || "Unnamed Food"}
                       </Text>
                       <Text
                         style={{
@@ -189,7 +378,10 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
                           marginTop: 2,
                         }}
                       >
-                        {log.quantity} × {log.calories} cal
+                        {log.quantity}
+                        {log.quantity_unit
+                          ? ` ${log.quantity_unit}`
+                          : ""} • {log.calories} cal • P: {log.protein_g}g
                       </Text>
                     </View>
                     <TouchableOpacity
@@ -226,11 +418,17 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
       {/* Food Selection Modal */}
       <Modal
         visible={showFoodModal}
-        onRequestClose={() => setShowFoodModal(false)}
+        onRequestClose={() => {
+          setShowFoodModal(false);
+          setUSDASearch("");
+          setSelectedFdcId(null);
+        }}
         animationType="slide"
       >
         <View style={{ flex: 1, paddingTop: 40 }}>
           <ScrollView
+            scrollEnabled={true}
+            nestedScrollEnabled={true}
             contentContainerStyle={{
               paddingHorizontal: 16,
               paddingVertical: 16,
@@ -253,146 +451,403 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
               >
                 Select Food
               </Text>
-              <TouchableOpacity onPress={() => setShowFoodModal(false)}>
-                <Text style={{ fontSize: 16, color: COLORS.primary }}>
-                  ✕
+              <TouchableOpacity
+                onPress={() => {
+                  setShowFoodModal(false);
+                  setUSDASearch("");
+                  setSelectedFdcId(null);
+                }}
+              >
+                <Text style={{ fontSize: 16, color: COLORS.primary }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Food Source Tabs */}
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}>
+              <TouchableOpacity
+                onPress={() => setFoodSource("database")}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  backgroundColor:
+                    foodSource === "database"
+                      ? COLORS.primary
+                      : COLORS.neutral.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color:
+                      foodSource === "database" ? "white" : COLORS.neutral.text,
+                    textAlign: "center",
+                  }}
+                >
+                  App Foods
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setFoodSource("usda")}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  backgroundColor:
+                    foodSource === "usda"
+                      ? COLORS.primary
+                      : COLORS.neutral.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color:
+                      foodSource === "usda" ? "white" : COLORS.neutral.text,
+                    textAlign: "center",
+                  }}
+                >
+                  USDA Search
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Category Selector */}
-            <View style={{ marginBottom: 20 }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "600",
-                  color: COLORS.neutral.textDark,
-                  marginBottom: 8,
-                }}
-              >
-                Category
-              </Text>
-              <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-                {FOOD_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    onPress={() => setSelectedCategory(cat.id)}
+            {foodSource === "database" ? (
+              <>
+                {/* Category Selector for Database Foods */}
+                <View style={{ marginBottom: 20 }}>
+                  <Text
                     style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                      borderWidth: 2,
-                      borderColor:
-                        selectedCategory === cat.id
-                          ? COLORS.primary
-                          : COLORS.neutral.border,
-                      backgroundColor:
-                        selectedCategory === cat.id ? "#f0f9ff" : "white",
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: COLORS.neutral.textDark,
+                      marginBottom: 8,
                     }}
                   >
+                    Category
+                  </Text>
+                  <View
+                    style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}
+                  >
+                    {FOOD_CATEGORIES.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        onPress={() => setSelectedCategory(cat.id)}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          borderWidth: 2,
+                          borderColor:
+                            selectedCategory === cat.id
+                              ? COLORS.primary
+                              : COLORS.neutral.border,
+                          backgroundColor:
+                            selectedCategory === cat.id ? "#f0f9ff" : "white",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color:
+                              selectedCategory === cat.id
+                                ? COLORS.primary
+                                : COLORS.neutral.text,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {cat.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Quantity Input for Database */}
+                <View
+                  style={{ marginBottom: 16, flexDirection: "row", gap: 8 }}
+                >
+                  <TextInput
+                    label="Quantity"
+                    placeholder="1"
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    keyboardType="decimal-pad"
+                    style={{ flex: 1 }}
+                  />
+                  <View style={{ justifyContent: "flex-end", marginBottom: 8 }}>
                     <Text
                       style={{
                         fontSize: 12,
-                        color:
-                          selectedCategory === cat.id
-                            ? COLORS.primary
-                            : COLORS.neutral.text,
-                        fontWeight: "600",
+                        color: COLORS.neutral.text,
+                        marginBottom: 4,
                       }}
                     >
-                      {cat.label}
+                      Unit
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: COLORS.neutral.border,
+                        borderRadius: 4,
+                        paddingHorizontal: 8,
+                        paddingVertical: 8,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12 }}>g</Text>
+                    </View>
+                  </View>
+                </View>
 
-            {/* Quantity Input */}
-            <TextInput
-              label="Quantity"
-              placeholder="1"
-              value={quantity}
-              onChangeText={setQuantity}
-              keyboardType="decimal-pad"
-            />
-
-            {/* Food List */}
-            {foodsLoading ? (
-              <LoadingSpinner />
-            ) : (
-              <>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "600",
-                    color: COLORS.neutral.textDark,
-                    marginBottom: 12,
-                    marginTop: 12,
-                  }}
-                >
-                  Foods
-                </Text>
-                {foods.map((food) => (
-                  <TouchableOpacity
-                    key={food.id}
-                    onPress={() => handleAddFood(food.id)}
-                    style={{
-                      backgroundColor: "white",
-                      borderWidth: 1,
-                      borderColor: COLORS.neutral.border,
-                      borderRadius: 8,
-                      padding: 12,
-                      marginBottom: 8,
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "600",
-                          color: COLORS.neutral.textDark,
-                        }}
-                      >
-                        {food.name}
-                      </Text>
+                {/* Food List from Database */}
+                {foodsLoading ? (
+                  <LoadingSpinner />
+                ) : (
+                  <>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: COLORS.neutral.textDark,
+                        marginBottom: 12,
+                        marginTop: 12,
+                      }}
+                    >
+                      Foods ({foods.length})
+                    </Text>
+                    {foods.length === 0 ? (
                       <Text
                         style={{
                           fontSize: 12,
                           color: COLORS.neutral.text,
-                          marginTop: 2,
+                          textAlign: "center",
+                          paddingVertical: 20,
                         }}
                       >
-                        P: {food.protein_g}g | C: {food.carbs_g}g | F:{" "}
-                        {food.fats_g}g
+                        No foods in this category
                       </Text>
+                    ) : (
+                      foods.map((food) => (
+                        <TouchableOpacity
+                          key={food.id}
+                          onPress={() => handleAddFood(food.id)}
+                          style={{
+                            backgroundColor: "white",
+                            borderWidth: 1,
+                            borderColor: COLORS.neutral.border,
+                            borderRadius: 8,
+                            padding: 12,
+                            marginBottom: 8,
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "600",
+                                color: COLORS.neutral.textDark,
+                              }}
+                            >
+                              {food.name}
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                color: COLORS.neutral.text,
+                                marginTop: 2,
+                              }}
+                            >
+                              P: {food.protein_g}g | C: {food.carbs_g}g | F:{" "}
+                              {food.fats_g}g
+                            </Text>
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: "700",
+                              color: COLORS.primary,
+                            }}
+                          >
+                            {food.calories_per_serving} cal
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                {/* USDA Search Section */}
+                <TextInput
+                  label="Search USDA Foods"
+                  placeholder="e.g., banana, chicken breast, rice"
+                  value={usedaSearch}
+                  onChangeText={setUSDASearch}
+                  style={{ marginBottom: 16 }}
+                />
+
+                {/* Quantity and Unit for USDA */}
+                <View style={{ marginBottom: 16, gap: 12 }}>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TextInput
+                      label="Quantity"
+                      placeholder="100"
+                      value={quantity}
+                      onChangeText={setQuantity}
+                      keyboardType="decimal-pad"
+                      style={{ flex: 1 }}
+                    />
+                    <View
+                      style={{ justifyContent: "flex-end", marginBottom: 8 }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: COLORS.neutral.text,
+                          marginBottom: 4,
+                        }}
+                      >
+                        Unit
+                      </Text>
+                      <TouchableOpacity
+                        style={{
+                          borderWidth: 1,
+                          borderColor: COLORS.neutral.border,
+                          borderRadius: 4,
+                          paddingHorizontal: 8,
+                          paddingVertical: 8,
+                          minWidth: 70,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: "600" }}>
+                          {quantityUnit}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
+                  </View>
+                </View>
+
+                {/* USDA Search Results */}
+                {usdaLoading && usedaSearch ? (
+                  <LoadingSpinner />
+                ) : usedaSearch ? (
+                  <>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: COLORS.neutral.textDark,
+                        marginBottom: 12,
+                        marginTop: 12,
+                      }}
+                    >
+                      USDA Results ({usdaResults.length})
+                    </Text>
+                    {usdaResults.length === 0 ? (
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: COLORS.neutral.text,
+                          textAlign: "center",
+                          paddingVertical: 20,
+                        }}
+                      >
+                        No results found
+                      </Text>
+                    ) : (
+                      usdaResults.map((result) => (
+                        <TouchableOpacity
+                          key={result.fdcId}
+                          onPress={() => setSelectedFdcId(result.fdcId)}
+                          style={{
+                            backgroundColor:
+                              selectedFdcId === result.fdcId
+                                ? "#f0f9ff"
+                                : "white",
+                            borderWidth: selectedFdcId === result.fdcId ? 2 : 1,
+                            borderColor:
+                              selectedFdcId === result.fdcId
+                                ? COLORS.primary
+                                : COLORS.neutral.border,
+                            borderRadius: 8,
+                            padding: 12,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: "600",
+                              color: COLORS.neutral.textDark,
+                            }}
+                          >
+                            {result.description}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: COLORS.neutral.text,
+                              marginTop: 4,
+                            }}
+                          >
+                            {result.dataType}
+                            {result.brandOwner && ` • ${result.brandOwner}`}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </>
+                ) : (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: COLORS.neutral.text,
+                      textAlign: "center",
+                      paddingVertical: 20,
+                    }}
+                  >
+                    Search for foods from USDA FoodData Central database
+                  </Text>
+                )}
+
+                {/* Selected Food Details */}
+                {selectedFdcId && detailsLoading && <LoadingSpinner />}
+
+                {selectedFdcId && selectedFoodDetails && (
+                  <Card
+                    title="Selected Food"
+                    style={{ marginTop: 16, marginBottom: 16 }}
+                  >
                     <Text
                       style={{
                         fontSize: 13,
-                        fontWeight: "700",
-                        color: COLORS.primary,
+                        fontWeight: "600",
+                        color: COLORS.neutral.textDark,
+                        marginBottom: 8,
                       }}
                     >
-                      {food.calories_per_serving} cal
+                      {selectedFoodDetails.description}
                     </Text>
-                  </TouchableOpacity>
-                ))}
+                    <Button
+                      title={`Log ${quantity}${quantityUnit}`}
+                      onPress={handleAddUSDAFood}
+                      disabled={loading}
+                      style={{ marginTop: 12 }}
+                    />
+                  </Card>
+                )}
               </>
             )}
-
-            <Button
-              title="Close"
-              onPress={() => setShowFoodModal(false)}
-              variant="secondary"
-              fullWidth
-              style={{ marginTop: 20 }}
-            />
           </ScrollView>
         </View>
       </Modal>
-    </>
+    </SafeAreaView>
   );
 };

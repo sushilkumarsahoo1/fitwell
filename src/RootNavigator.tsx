@@ -23,7 +23,7 @@ const Tab = createBottomTabNavigator();
 
 const AuthStack = () => {
   const [authScreen, setAuthScreen] = React.useState<"signin" | "signup">(
-    "signin"
+    "signin",
   );
 
   return (
@@ -33,10 +33,7 @@ const AuthStack = () => {
       }}
     >
       {authScreen === "signin" ? (
-        <Stack.Screen
-          name="SignIn"
-          options={{ animationEnabled: false }}
-        >
+        <Stack.Screen name="SignIn" options={{ animationEnabled: false }}>
           {() => (
             <SignInScreen
               onSuccess={() => setAuthScreen("signin")}
@@ -45,10 +42,7 @@ const AuthStack = () => {
           )}
         </Stack.Screen>
       ) : (
-        <Stack.Screen
-          name="SignUp"
-          options={{ animationEnabled: false }}
-        >
+        <Stack.Screen name="SignUp" options={{ animationEnabled: false }}>
           {() => (
             <SignUpScreen
               onSuccess={() => setAuthScreen("signin")}
@@ -62,9 +56,9 @@ const AuthStack = () => {
 };
 
 const OnboardingStack = () => {
-  const [step, setStep] = React.useState<
-    "profile" | "goal" | "activity"
-  >("profile");
+  const [step, setStep] = React.useState<"profile" | "goal" | "activity">(
+    "profile",
+  );
 
   return (
     <Stack.Navigator
@@ -73,23 +67,13 @@ const OnboardingStack = () => {
       }}
     >
       {step === "profile" && (
-        <Stack.Screen
-          name="ProfileSetup"
-          options={{ animationEnabled: false }}
-        >
-          {() => (
-            <ProfileSetupScreen onSuccess={() => setStep("goal")} />
-          )}
+        <Stack.Screen name="ProfileSetup" options={{ animationEnabled: false }}>
+          {() => <ProfileSetupScreen onSuccess={() => setStep("goal")} />}
         </Stack.Screen>
       )}
       {step === "goal" && (
-        <Stack.Screen
-          name="FitnessGoal"
-          options={{ animationEnabled: false }}
-        >
-          {() => (
-            <FitnessGoalScreen onSuccess={() => setStep("activity")} />
-          )}
+        <Stack.Screen name="FitnessGoal" options={{ animationEnabled: false }}>
+          {() => <FitnessGoalScreen onSuccess={() => setStep("activity")} />}
         </Stack.Screen>
       )}
       {step === "activity" && (
@@ -111,6 +95,7 @@ const AppStack = () => {
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.neutral.text,
+        sceneContainerStyle: { flex: 1 },
         tabBarStyle: {
           borderTopColor: COLORS.neutral.border,
           backgroundColor: "white",
@@ -235,4 +220,3 @@ export const RootNavigator: React.FC = () => {
 };
 
 import { Text, View } from "react-native";
-

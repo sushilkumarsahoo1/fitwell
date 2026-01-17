@@ -65,6 +65,9 @@ CREATE POLICY "Public foods are readable, custom foods only by owner" ON foods
 CREATE POLICY "Users can create custom foods" ON foods
   FOR INSERT WITH CHECK (auth.uid() = user_id AND is_custom = TRUE);
 
+CREATE POLICY "Anyone can create public foods" ON foods
+  FOR INSERT WITH CHECK (is_custom = FALSE AND user_id IS NULL);
+
 CREATE POLICY "Users can update own foods" ON foods
   FOR UPDATE USING (auth.uid() = user_id AND is_custom = TRUE);
 

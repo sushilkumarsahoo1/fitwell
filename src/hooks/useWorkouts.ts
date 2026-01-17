@@ -1,6 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@services/supabase";
-import type { WorkoutLog, Workout } from "@types/index";
+import * as workoutService from "@services/workoutService";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Workout, WorkoutLog } from "@types/index";
 
 export const useWorkoutTemplates = (userId: string) => {
   return useQuery({
@@ -24,9 +25,10 @@ export const useDailyWorkoutLogs = (userId: string, date: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workout_logs")
-        .select("*, workouts(*)")
+        .select()
         .eq("user_id", userId)
-        .eq("date", date);
+        .eq("date", date)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data || [];
@@ -39,7 +41,9 @@ export const useAddWorkoutLog = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (workoutLog: Omit<WorkoutLog, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (
+      workoutLog: Omit<WorkoutLog, "id" | "created_at" | "updated_at">,
+    ) => {
       const { data, error } = await supabase
         .from("workout_logs")
         .insert([workoutLog])
@@ -95,10 +99,180 @@ export const useWeeklyWorkoutSummary = (userId: string, weekStart: string) => {
       return {
         workouts: data || [],
         totalSessions: data?.length || 0,
-        totalDuration: data?.reduce((sum, w) => sum + (w.duration_minutes || 0), 0) || 0,
-        totalCalories: data?.reduce((sum, w) => sum + (w.calories_burned || 0), 0) || 0,
+        totalDuration:
+          data?.reduce((sum, w) => sum + (w.duration_minutes || 0), 0) || 0,
+        totalCalories:
+          data?.reduce((sum, w) => sum + (w.calories_burned || 0), 0) || 0,
       };
     },
     enabled: !!userId && !!weekStart,
+  });
+};
+/**
+ * Log strength training workout
+ * Calculates calories based on exercise MET value and user weight
+ */
+export const useAddStrengthWorkout = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variables: {
+      userId: string;
+      exerciseId: string;
+      exerciseName: string;
+      sets: number;
+      reps: number;
+      weightKg: number;
+      date: string;
+      notes?: string;
+      userWeight: number;
+    }) => {
+      return await workoutService.addStrengthWorkout(
+        {
+          user_id: variables.userId,
+          exercise_id: variables.exerciseId,
+          exercise_name: variables.exerciseName,
+          sets: variables.sets,
+          reps: variables.reps,
+          weight_kg: variables.weightKg,
+          date: variables.date,
+          notes: variables.notes,
+        },
+        variables.userWeight,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workoutLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["dailyStats"] });
+      queryClient.invalidateQueries({ queryKey: ["weeklyWorkoutSummary"] });
+    },
+  });
+};
+
+/**
+ * Log cardio workout
+ * Calculates calories based on activity MET value and duration
+ */
+export const useAddCardioWorkout = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variables: {
+      userId: string;
+      activityId: string;
+      activityName: string;
+      durationMinutes: number;
+      distanceKm?: number;
+      intensity?: "light" | "moderate" | "vigorous";
+      date: string;
+      notes?: string;
+    }) => {
+      return await workoutService.addCardioWorkout({
+        user_id: variables.userId,
+        activity_id: variables.activityId,
+        activity_name: variables.activityName,
+        duration_minutes: variables.durationMinutes,
+        distance_km: variables.distanceKm,
+        intensity: variables.intensity,
+        date: variables.date,
+        notes: variables.notes,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workoutLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["dailyStats"] });
+      queryClient.invalidateQueries({ queryKey: ["weeklyWorkoutSummary"] });
+    },
+  });
+};
+
+/**
+ * Log yoga workout
+ * Calculates calories based on style intensity and duration
+ */
+export const useAddYogaWorkout = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variables: {
+      userId: string;
+      styleId: string;
+      styleName: string;
+      durationMinutes: number;
+      difficulty?: "beginner" | "intermediate" | "advanced";
+      date: string;
+      notes?: string;
+    }) => {
+      return await workoutService.addYogaWorkout({
+        user_id: variables.userId,
+        style_id: variables.styleId,
+        style_name: variables.styleName,
+        duration_minutes: variables.durationMinutes,
+        difficulty: variables.difficulty,
+        date: variables.date,
+        notes: variables.notes,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workoutLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["dailyStats"] });
+      queryClient.invalidateQueries({ queryKey: ["weeklyWorkoutSummary"] });
+    },
+  });
+};
+
+/**
+ * Log HIIT workout
+ * Calculates calories based on high-intensity exercise duration
+ */
+export const useAddHIITWorkout = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variables: {
+      userId: string;
+      workoutId: string;
+      workoutName: string;
+      durationMinutes: number;
+      rounds?: number;
+      exercises?: string;
+      intensity?: "light" | "moderate" | "vigorous";
+      date: string;
+      notes?: string;
+    }) => {
+      return await workoutService.addHIITWorkout({
+        user_id: variables.userId,
+        workout_id: variables.workoutId,
+        workout_name: variables.workoutName,
+        duration_minutes: variables.durationMinutes,
+        rounds: variables.rounds,
+        exercises: variables.exercises,
+        intensity: variables.intensity,
+        date: variables.date,
+        notes: variables.notes,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workoutLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["dailyStats"] });
+      queryClient.invalidateQueries({ queryKey: ["weeklyWorkoutSummary"] });
+    },
+  });
+};
+
+/**
+ * Get workout statistics for a date range
+ */
+export const useWorkoutStats = (
+  userId: string,
+  startDate: string,
+  endDate: string,
+) => {
+  return useQuery({
+    queryKey: ["workoutStats", userId, startDate, endDate],
+    queryFn: async () => {
+      return await workoutService.getWorkoutStats(userId, startDate, endDate);
+    },
+    enabled: !!userId && !!startDate && !!endDate,
   });
 };
