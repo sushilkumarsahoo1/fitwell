@@ -35,10 +35,17 @@ interface USDASearchResponse {
 }
 
 interface USDANutrient {
-  nutrientId: number;
-  nutrientName: string;
-  value: number;
-  unitName: string;
+  nutrientId?: number;
+  nutrientName?: string;
+  value?: number;
+  unitName?: string;
+  // Alternate format from USDA API
+  nutrient?: {
+    id: number;
+    name: string;
+    unitName: string;
+  };
+  amount?: number;
 }
 
 interface USDAFoodDetails {
@@ -320,6 +327,8 @@ export async function getFoodDetails(
     const url = new URL(detailsUrl);
     url.searchParams.append("api_key", USDA_API_KEY);
 
+    console.log("[foodService] Fetching food details from:", url.toString());
+
     const response = await fetch(url.toString());
 
     if (!response.ok) {
@@ -332,6 +341,13 @@ export async function getFoodDetails(
     }
 
     const data: USDAFoodDetails = await response.json();
+
+    console.log(
+      "[foodService] USDA API response - foodNutrients count:",
+      data.foodNutrients?.length || 0,
+      "Description:",
+      data.description,
+    );
 
     // Cache food details
     const cache = foodCache ? JSON.parse(foodCache) : {};
@@ -364,11 +380,30 @@ export function extractNutrition(
 ): NutritionData {
   // USDA nutrients are per 100g by default
   // Map USDA nutrient IDs to our nutrition types
+  // Comprehensive mapping to handle all USDA API versions and data types
   const nutrientMap: { [key: string]: string } = {
-    "1008": "calories", // Energy (kcal)
-    "1003": "protein_g", // Protein (g)
-    "1005": "carbs_g", // Carbohydrate (g)
-    "1004": "fats_g", // Total lipid (fat) (g)
+    // ENERGY (CALORIES)
+    "1008": "calories", // Energy (kcal) - SR Legacy
+    "2000": "calories", // Energy (kcal) - Foundation
+    "1062": "calories", // Energy (kcal) - other
+    "9000": "calories", // Energy - catch-all
+
+    // PROTEIN
+    "1003": "protein_g", // Protein (g) - SR Legacy
+    "9001": "protein_g", // Protein - catch-all
+    "1103": "protein_g", // Protein - other
+
+    // CARBOHYDRATES
+    "1005": "carbs_g", // Carbohydrate (g) - SR Legacy
+    "2009": "carbs_g", // Carbohydrate (g) - Foundation
+    "1011": "carbs_g", // Carbohydrate - other
+    "9002": "carbs_g", // Carbohydrate - catch-all
+
+    // TOTAL FAT
+    "1004": "fats_g", // Total lipid/fat (g) - SR Legacy
+    "1078": "fats_g", // Total fat (g) - other
+    "1079": "fats_g", // Total fat - other variant
+    "9003": "fats_g", // Total fat - catch-all
   };
 
   // Initialize nutrition with safe defaults (handle missing nutrients)
@@ -386,44 +421,120 @@ export function extractNutrition(
         `[extractNutrition] Processing ${foodDetails.foodNutrients.length} nutrients from USDA API`,
       );
 
-      // Log first nutrient structure to debug
+      // Log raw nutrients to debug
       if (foodDetails.foodNutrients.length > 0) {
         console.log(
-          "[extractNutrition] Sample nutrient structure:",
-          JSON.stringify(foodDetails.foodNutrients[0], null, 2),
+          "[extractNutrition] Raw nutrients (first 3):",
+          JSON.stringify(foodDetails.foodNutrients.slice(0, 3), null, 2),
+        );
+
+        // Log all nutrient IDs found
+        const allNutrientIds = foodDetails.foodNutrients
+          .map(
+            (n) =>
+              n.nutrientId ||
+              (n.nutrient?.id ? `nested:${n.nutrient.id}` : "unknown"),
+          )
+          .filter(Boolean);
+        console.log(
+          `[extractNutrition] ALL nutrient IDs in response: [${allNutrientIds.join(", ")}]`,
         );
       }
 
       foodDetails.foodNutrients.forEach((nutrient, index) => {
         try {
-          // Safely get nutrient ID, handling cases where it might be undefined
-          if (
-            !nutrient ||
-            nutrient.nutrientId === undefined ||
-            nutrient.nutrientId === null
-          ) {
+          // Handle different USDA API response formats
+          // Format 1: Direct properties (legacy format)
+          let nutrientId = nutrient.nutrientId;
+          let nutrientName = nutrient.nutrientName;
+          let value = nutrient.value;
+          let unitName = nutrient.unitName;
+
+          // Format 2: Nested nutrient object (current API format)
+          if (!nutrientId && nutrient.nutrient) {
+            nutrientId = nutrient.nutrient.id;
+            nutrientName = nutrient.nutrient.name;
+            unitName = nutrient.nutrient.unitName;
+            value = nutrient.amount;
+          }
+
+          // Log ALL nutrients found with their IDs for debugging
+          if (index < 10) {
             console.log(
-              `[extractNutrition] Skipping nutrient at index ${index}: invalid nutrientId`,
+              `[extractNutrition] Nutrient[${index}] ID=${nutrientId}, Name=${nutrientName}, Value=${value}, Unit=${unitName}`,
             );
+          }
+
+          // Skip if still no data
+          if (!nutrientId || value === undefined || value === null) {
             return;
           }
 
-          const nutrientKey = String(nutrient.nutrientId);
-          const fieldName = nutrientMap[nutrientKey];
+          const nutrientKey = String(nutrientId);
+          let fieldName = nutrientMap[nutrientKey];
 
-          if (fieldName) {
+          // Fallback: try to extract by nutrient name if ID doesn't match
+          if (!fieldName && nutrientName) {
+            const lowerName = nutrientName.toLowerCase();
+            if (
+              lowerName.includes("energy") ||
+              lowerName.includes("calor") ||
+              lowerName.includes("kcal") ||
+              lowerName.includes("kj") ||
+              lowerName.includes("cal")
+            ) {
+              fieldName = "calories";
+            } else if (
+              lowerName.includes("protein") ||
+              lowerName.includes("amino")
+            ) {
+              fieldName = "protein_g";
+            } else if (
+              lowerName.includes("carbohydrate") ||
+              lowerName.includes("carb") ||
+              lowerName.includes("sugar") ||
+              lowerName.includes("starch")
+            ) {
+              fieldName = "carbs_g";
+            } else if (
+              lowerName.includes("fat") ||
+              lowerName.includes("lipid") ||
+              lowerName.includes("total fat") ||
+              lowerName.includes("fatty") ||
+              lowerName.includes("saturated fat") ||
+              lowerName.includes("unsaturated")
+            ) {
+              fieldName = "fats_g";
+            }
+          }
+
+          // Log all nutrient names encountered for debugging
+          if (index < 15 && nutrientName) {
+            console.log(
+              `[extractNutrition] Nutrient[${index}]: Name="${nutrientName}", ID=${nutrientId}, Value=${value}, Unit=${unitName}, MatchedField=${fieldName || "NONE"}`,
+            );
+          }
+
+          if (fieldName && value !== undefined && value !== null) {
             // USDA provides values per 100g for most foods
             // Handle edge cases where unit might differ
-            let value = nutrient.value || 0;
+            let finalValue = value || 0;
 
-            if (nutrient.unitName === "kJ") {
+            if (unitName === "kJ") {
               // Convert kilojoules to kcal (1 kcal = 4.184 kJ)
               if (fieldName === "calories") {
-                value = value / 4.184;
+                finalValue = finalValue / 4.184;
               }
             }
 
-            nutritionPer100g[fieldName as keyof NutritionData] = value;
+            console.log(
+              `[extractNutrition] ✅ Found ${nutrientName || "unnamed"} (ID: ${nutrientKey}): ${finalValue} ${unitName}`,
+            );
+            nutritionPer100g[fieldName as keyof NutritionData] = finalValue;
+          } else if (nutrientId) {
+            console.log(
+              `[extractNutrition] ⚠️  Skipped ${nutrientName || "unnamed"} (ID: ${nutrientKey}) - no matching field or invalid value`,
+            );
           }
         } catch (err) {
           console.error(
@@ -432,10 +543,23 @@ export function extractNutrition(
           );
         }
       });
+    } else {
+      console.warn(
+        "[extractNutrition] No foodNutrients array found in USDA response",
+        { foodDetails },
+      );
     }
   } catch (err) {
     console.error("[extractNutrition] Error extracting nutrients:", err);
   }
+
+  console.log(
+    "[extractNutrition] Nutrition per 100g:",
+    nutritionPer100g,
+    "Quantity:",
+    quantity,
+    "g",
+  );
 
   // Convert from per-100g to user quantity
   // If user entered 150g, multiply by 1.5

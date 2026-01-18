@@ -11,7 +11,13 @@ import { useDailyWorkoutLogs } from "@hooks/useWorkouts";
 import { useNavigation } from "@react-navigation/native";
 import { formatDate } from "@utils/dateUtils";
 import React, { useState } from "react";
-import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+    RefreshControl,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface DashboardScreenProps {}
@@ -289,7 +295,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = () => {
                             color: COLORS.neutral.textDark,
                           }}
                         >
-                          {log.foods?.name || "Food"}
+                          {log.food_name || log.foods?.name || "Food"}
                         </Text>
                         <Text
                           style={{

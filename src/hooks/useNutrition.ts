@@ -124,9 +124,13 @@ export const useDeleteFoodLog = () => {
   });
 };
 
-export const useFoodDatabase = (category?: string) => {
+export const useFoodDatabase = (
+  category?: string,
+  offset: number = 0,
+  limit: number = 1000,
+) => {
   return useQuery({
-    queryKey: ["foods", category],
+    queryKey: ["foods", category, offset, limit],
     queryFn: async () => {
       let query = supabase.from("foods").select("*").eq("is_custom", false);
 
@@ -134,7 +138,9 @@ export const useFoodDatabase = (category?: string) => {
         query = query.eq("category", category);
       }
 
-      const { data, error } = await query.limit(100);
+      const { data, error } = await query
+        .order("name", { ascending: true })
+        .range(offset, offset + limit - 1);
 
       if (error) throw error;
       return data || [];

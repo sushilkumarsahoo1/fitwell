@@ -1,0 +1,11 @@
+======================================================================
+🍽️  OpenFoodFacts to Supabase - Food Importer
+======================================================================
+
+📊 CSV File: en.openfoodfacts.org.products.csv
+   Size: 11651.8 MB
+
+🔗 Connecting to Supabase...
+   ✅ Connected successfully
+
+📥 Processing CSV (batch size: 500)...

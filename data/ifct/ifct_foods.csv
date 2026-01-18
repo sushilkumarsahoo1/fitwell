@@ -1,0 +1,41 @@
+name,name_hindi,category,serving_size_g,calories,protein_g,carbs_g,fat_g,fiber_g,sodium_mg,potassium_mg
+Basmati Rice (cooked),बासमती चावल,vegetarian,150,195,4.3,43,0.3,0.6,0,55
+White Rice (cooked),सफेद चावल,vegetarian,150,205,4.3,45,0.3,0.4,0,55
+Brown Rice (cooked),भूरा चावल,vegetarian,150,215,5.0,45,1.8,3.5,10,84
+Wheat Flour,गेहूं का आटा,vegetarian,30,98,3.6,20,0.5,3.4,0,90
+Whole Wheat Bread (Chapati),चपाती,vegetarian,55,130,4.0,24,1.5,3.6,340,96
+Moong Dal (cooked),मूंग दाल,vegan,140,105,9.0,19,0.4,8.0,2,266
+Masoor Dal (cooked),मसूर दाल,vegan,140,115,9.0,20,0.4,7.9,2,278
+Chickpea (Chana) - cooked,चना,vegan,140,134,8.7,22,2.1,6.5,4,240
+Kidney Beans (cooked),राजमा,vegan,140,127,8.7,23,0.4,6.4,2,358
+Potato (boiled),आलू,vegan,100,77,2.0,17,0.1,2.1,6,358
+Spinach (cooked),पालक,vegan,100,23,2.7,3.6,0.4,2.2,64,558
+Tomato (raw),टमाटर,vegan,100,18,0.9,3.9,0.2,1.2,5,237
+Onion (cooked),प्याज,vegan,100,44,1.1,10,0.1,1.7,3,146
+Cauliflower (cooked),फूलगोभी,vegan,100,25,1.9,5.0,0.4,2.4,19,141
+Cucumber (raw),ककड़ी,vegan,100,16,0.7,3.6,0.1,0.5,2,147
+Chicken Breast (roasted),चिकन ब्रेस्ट,non-vegetarian,100,165,31,0,3.6,0,74,256
+Lamb Meat (cooked),मेमना मांस,non-vegetarian,100,294,25,0,21,0,75,175
+Fish (roasted),मछली,non-vegetarian,100,206,22,0,13,0,75,383
+Egg (boiled),अंडा,non-vegetarian,50,78,6.3,0.6,5.3,0,124,63
+Yogurt (plain),दही,dairy,100,59,3.5,3.2,3.3,0,16,104
+Paneer (cottage cheese),पनीर,dairy,100,265,25,1.2,20,0,390,138
+Milk (whole),दूध,dairy,100,61,3.2,4.8,3.3,0,44,132
+Ghee,घी,dairy,14,123,0,0,14,0,0,5
+Coconut Oil,नारियल का तेल,vegan,14,119,0,0,13.5,0,0,0
+Mustard Oil,सरसों का तेल,vegan,14,119,0,0,13.5,0,0,0
+Biryani (Chicken),बिरयानी,non-vegetarian,300,540,30,60,18,2,800,300
+Dal Makhani,दाल मखनी,vegetarian,200,280,12,28,14,7,600,400
+Samosa (fried),समोसा,vegetarian,50,150,4,15,8,2,300,150
+Butter Chicken,बटर चिकन,non-vegetarian,250,420,35,12,28,0,700,250
+Tandoori Chicken,तंदूरी चिकन,non-vegetarian,200,280,42,2,12,0,600,350
+Aloo Gobi,आलू गोभी,vegan,200,180,6,24,7,5,400,350
+Naan (Indian Bread),नान,vegetarian,90,280,9,48,6,2,600,180
+Roti (Whole Wheat Bread),रोटी,vegan,55,130,4,24,1.5,3.6,340,96
+Mango (raw),आम,vegan,165,99,1.4,25,0.3,2.6,2,168
+Banana,केला,vegan,118,105,1.3,27,0.3,3.1,1,422
+Papaya (raw),पपीता,vegan,100,43,0.5,11,0.3,1.7,8,182
+Coconut (fresh),नारियल,vegan,45,354,3.3,15,33,9,20,356
+Cashew (roasted),काजू,vegan,28,155,5,9,12,0.9,3,160
+Peanut (roasted),मूंगफली,vegan,28,161,7.3,6,14,2.6,0,159
+Sesame Seeds,तिल,vegan,10,52,1.7,2.2,4.7,1.1,3,64

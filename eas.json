@@ -1,0 +1,59 @@
+{
+  "cli": {
+    "version": ">= 14.0.0",
+    "promptToConfigurePushNotifications": false
+  },
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview2": {
+      "android": {
+        "gradleCommand": ":app:assembleRelease"
+      }
+    },
+    "preview3": {
+      "developmentClient": true
+    },
+    "production": {
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "ios": {
+        "buildType": "release"
+      }
+    },
+    "android": {
+      "node": "18.13.0",
+      "ndk": "25.1.8937393",
+      "buildType": "apk",
+      "env": {
+        "EXPO_USE_LATEST_PREBUILD_CONFIG": "1"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "ios": {
+      "node": "18.13.0",
+      "buildType": "release",
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
+      },
+      "env": {
+        "EXPO_USE_LATEST_PREBUILD_CONFIG": "1"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

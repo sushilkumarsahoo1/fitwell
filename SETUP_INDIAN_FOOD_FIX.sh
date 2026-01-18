@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Quick setup to fix Indian Food UUID validation error
+# Run this after fixing the code
+
+echo "🚀 Indian Food UUID Error Fix - Setup Guide"
+echo "=========================================="
+echo ""
+echo "This fix resolves: 'invalid input syntax for type uuid: \"155\"'"
+echo ""
+echo "✅ Step 1: Code is already updated"
+echo "   • Updated useFoodDatabase hook to use main foods table"
+echo "   • Food IDs will now be proper UUIDs"
+echo ""
+echo "⏳ Step 2: Run the migration to move Indian foods"
+echo ""
+echo "   Option A - Using migration script (recommended):"
+echo "   npx ts-node scripts/migrate-indian-foods.ts"
+echo ""
+echo "   Option B - Manual Supabase SQL execution:"
+echo "   1. Open: https://app.supabase.com/project/[your-project]/sql"
+echo "   2. Create new query"
+echo "   3. Copy from: supabase/migrations/20260118_migrate_indian_foods_to_foods_table.sql"
+echo "   4. Execute"
+echo ""
+echo "✅ Step 3: Test the fix"
+echo "   1. Restart the app"
+echo "   2. Go to Food Logging → App Foods → Indian"
+echo "   3. Log an Indian food"
+echo "   4. Verify no UUID error ✨"
+echo ""
+echo "📚 For more details, see: FIX_INDIAN_FOOD_UUID_ERROR.md"
+echo ""

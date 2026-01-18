@@ -1,24 +1,56 @@
 // Fitness Goals
 export const FITNESS_GOALS = [
-  { id: "lose_fat", label: "Lose Fat", description: "Create a calorie deficit" },
-  { id: "maintain", label: "Maintain", description: "Keep your current weight" },
+  {
+    id: "lose_fat",
+    label: "Lose Fat",
+    description: "Create a calorie deficit",
+  },
+  {
+    id: "maintain",
+    label: "Maintain",
+    description: "Keep your current weight",
+  },
   { id: "gain_muscle", label: "Gain Muscle", description: "Build muscle mass" },
 ] as const;
 
 // Activity Levels
 export const ACTIVITY_LEVELS = [
-  { id: "sedentary", label: "Sedentary", multiplier: 1.2, description: "Little or no exercise" },
-  { id: "light", label: "Light", multiplier: 1.375, description: "1-3 days per week" },
-  { id: "moderate", label: "Moderate", multiplier: 1.55, description: "3-5 days per week" },
-  { id: "active", label: "Active", multiplier: 1.725, description: "6-7 days per week" },
-  { id: "very_active", label: "Very Active", multiplier: 1.9, description: "Intense exercise daily" },
+  {
+    id: "sedentary",
+    label: "Sedentary",
+    multiplier: 1.2,
+    description: "Little or no exercise",
+  },
+  {
+    id: "light",
+    label: "Light",
+    multiplier: 1.375,
+    description: "1-3 days per week",
+  },
+  {
+    id: "moderate",
+    label: "Moderate",
+    multiplier: 1.55,
+    description: "3-5 days per week",
+  },
+  {
+    id: "active",
+    label: "Active",
+    multiplier: 1.725,
+    description: "6-7 days per week",
+  },
+  {
+    id: "very_active",
+    label: "Very Active",
+    multiplier: 1.9,
+    description: "Intense exercise daily",
+  },
 ] as const;
 
 // Food Categories
 export const FOOD_CATEGORIES = [
   { id: "indian", label: "Indian Foods" },
   { id: "global", label: "Global Foods" },
-  { id: "homemade", label: "Homemade Recipes" },
   { id: "packaged", label: "Packaged Foods" },
 ] as const;
 
