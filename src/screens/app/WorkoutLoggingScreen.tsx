@@ -35,7 +35,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 interface WorkoutLoggingScreenProps {}
 
-type WorkoutMode = "quick" | "strength" | "cardio" | "yoga" | "hiit";
+type WorkoutMode = "quick" | "strength" | "cardio" | "yoga" | "hiit" | "manual";
 
 export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
   const navigation = useNavigation();
@@ -43,7 +43,7 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
   const [date] = useState(formatDate(new Date()));
   const [selectedType, setSelectedType] = useState<string>("cardio");
   const [workoutMode, setWorkoutMode] = useState<WorkoutMode>("quick");
-  const [duration, setDuration] = useState("30");
+  const [duration, setDuration] = useState("");
   const [caloriesBurned, setCaloriesBurned] = useState("");
   const [notes, setNotes] = useState("");
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
@@ -53,9 +53,9 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
   const [selectedExerciseCategory, setSelectedExerciseCategory] =
     useState("chest");
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
-  const [sets, setSets] = useState("3");
-  const [reps, setReps] = useState("10");
-  const [weight, setWeight] = useState("0");
+  const [sets, setSets] = useState("");
+  const [reps, setReps] = useState("");
+  const [weight, setWeight] = useState("");
 
   // Cardio state
   const [selectedCardioActivity, setSelectedCardioActivity] = useState<
@@ -82,8 +82,13 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
 
   // HIIT state
   const [selectedHIIT, setSelectedHIIT] = useState<string | null>(null);
-  const [rounds, setRounds] = useState("4");
+  const [rounds, setRounds] = useState("");
   const [hiitExercises, setHiitExercises] = useState("");
+
+  // Manual workout state
+  const [manualWorkoutName, setManualWorkoutName] = useState("");
+  const [manualWorkoutDuration, setManualWorkoutDuration] = useState("");
+  const [manualWorkoutCalories, setManualWorkoutCalories] = useState("");
 
   // Hooks
   const { data: workoutLogs = [], isLoading: logsLoading } =
@@ -168,9 +173,9 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
 
       // Reset form
       setSelectedExercise(null);
-      setSets("3");
-      setReps("10");
-      setWeight("0");
+      setSets("");
+      setReps("");
+      setWeight("");
       setNotes("");
       setShowWorkoutModal(false);
       Alert.alert("Success", "Strength workout logged!");
@@ -281,6 +286,60 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
     } catch (error) {
       console.error("Error logging manual cardio:", error);
       Alert.alert("Error", "Failed to log cardio workout");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Handle manual workout entry (any workout type)
+   */
+  const handleAddManualWorkout = async () => {
+    if (!user || !manualWorkoutCalories) {
+      Alert.alert("Error", "Please enter calories burned");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const duration = manualWorkoutDuration
+        ? parseInt(manualWorkoutDuration)
+        : 30;
+      const calories = Math.round(parseFloat(manualWorkoutCalories));
+      const workoutName = manualWorkoutName || "Manual Workout";
+
+      // Generate a proper UUID for workout_id
+      const generateUUID = () => {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+          /[xy]/g,
+          function (c) {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          },
+        );
+      };
+
+      // Log manual workout entry
+      await addWorkoutLog.mutateAsync({
+        user_id: user.id,
+        workout_id: generateUUID(),
+        duration_minutes: duration,
+        calories_burned: calories,
+        date,
+        notes: `${workoutName}${notes ? " - " + notes : ""}`,
+      } as any);
+
+      // Reset form
+      setManualWorkoutName("");
+      setManualWorkoutDuration("");
+      setManualWorkoutCalories("");
+      setNotes("");
+      setShowWorkoutModal(false);
+      Alert.alert("Success", "Workout logged!");
+    } catch (error) {
+      console.error("Error logging manual workout:", error);
+      Alert.alert("Error", "Failed to log workout");
     } finally {
       setLoading(false);
     }
@@ -500,6 +559,7 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
               { id: "cardio", label: "Cardio", icon: "🏃" },
               { id: "yoga", label: "Yoga", icon: "🧘" },
               { id: "hiit", label: "HIIT", icon: "⚡" },
+              { id: "manual", label: "Manual Entry", icon: "✏️" },
             ].map((type) => (
               <TouchableOpacity
                 key={type.id}
@@ -571,7 +631,9 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
                       color: COLORS.neutral.textDark,
                     }}
                   >
-                    {log.exercise_name}
+                    {log.exercise_name ||
+                      log.notes?.split(" - ")[0] ||
+                      "Workout"}
                   </Text>
                   <Text
                     style={{
@@ -628,6 +690,9 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
           setManualCardioDistance("");
           setManualCardioCalories("");
           setManualCardioDuration("30");
+          setManualWorkoutName("");
+          setManualWorkoutDuration("");
+          setManualWorkoutCalories("");
           setNotes("");
           setDuration("30");
           setDistance("");
@@ -1304,6 +1369,64 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
                   title="Log HIIT Workout"
                   onPress={handleAddHIITWorkout}
                   disabled={loading || !selectedHIIT}
+                  fullWidth
+                />
+              </>
+            )}
+
+            {/* MANUAL ENTRY */}
+            {selectedType === "manual" && (
+              <>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: COLORS.neutral.textDark,
+                    marginBottom: 16,
+                  }}
+                >
+                  Log Manual Workout
+                </Text>
+
+                <TextInput
+                  label="Workout Name - Optional"
+                  placeholder="e.g., Running, Swimming, Stretching"
+                  value={manualWorkoutName}
+                  onChangeText={setManualWorkoutName}
+                  style={{ marginBottom: 12 }}
+                />
+
+                <TextInput
+                  label="Duration (minutes) - Optional"
+                  placeholder="30"
+                  value={manualWorkoutDuration}
+                  onChangeText={setManualWorkoutDuration}
+                  keyboardType="number-pad"
+                  style={{ marginBottom: 12 }}
+                />
+
+                <TextInput
+                  label="Calories Burned"
+                  placeholder="300"
+                  value={manualWorkoutCalories}
+                  onChangeText={setManualWorkoutCalories}
+                  keyboardType="number-pad"
+                  style={{ marginBottom: 12 }}
+                />
+
+                <TextInput
+                  label="Notes"
+                  placeholder="Optional notes"
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  style={{ marginBottom: 16 }}
+                />
+
+                <Button
+                  title="Log Workout"
+                  onPress={handleAddManualWorkout}
+                  disabled={loading}
                   fullWidth
                 />
               </>

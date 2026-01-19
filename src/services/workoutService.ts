@@ -17,8 +17,7 @@ import {
     findYogaStyle,
 } from "../constants/exercises";
 import {
-    calculateCaloriesBurned,
-    calculateStrengthCalories,
+    calculateCaloriesBurned
 } from "../utils/workoutUtils";
 import { supabase } from "./supabase";
 
@@ -152,11 +151,11 @@ export async function addStrengthWorkout(
     const durationMinutes = workout.duration_minutes || workout.sets * 3;
 
     // Calculate calories burned using MET formula
-    // MET value for strength training varies; use intensity multiplier
-    const caloriesBurned = calculateStrengthCalories(
-      met / 60, // Convert MET to per-minute calorie burn
+    // Formula: Calories = MET × Weight(kg) × Duration(hours)
+    const caloriesBurned = calculateCaloriesBurned(
+      met,
+      workout.weight_kg,
       durationMinutes,
-      1.0,
     );
 
     // Create log entry
