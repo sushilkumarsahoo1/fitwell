@@ -126,25 +126,25 @@ export const STRENGTH_EXERCISES = [
  * MET values used for calorie burn calculation
  */
 export const CARDIO_ACTIVITIES = [
-  // Running
-  { id: "running_5mph", name: "Running 5 mph", met: 8.3 },
-  { id: "running_6mph", name: "Running 6 mph (10 min/mile)", met: 9.8 },
-  { id: "running_7mph", name: "Running 7 mph (8.5 min/mile)", met: 11.0 },
-  { id: "running_8mph", name: "Running 8 mph (7.5 min/mile)", met: 11.8 },
-  { id: "running_9mph", name: "Running 9 mph (6.7 min/mile)", met: 12.3 },
-  { id: "running_10mph", name: "Running 10 mph (6 min/mile)", met: 14.5 },
+  // Running (km/hr)
+  { id: "running_8kmh", name: "Running 8 km/hr", met: 8.3 },
+  { id: "running_10kmh", name: "Running 10 km/hr", met: 9.8 },
+  { id: "running_11kmh", name: "Running 11 km/hr", met: 11.0 },
+  { id: "running_13kmh", name: "Running 13 km/hr", met: 11.8 },
+  { id: "running_14kmh", name: "Running 14 km/hr", met: 12.3 },
+  { id: "running_16kmh", name: "Running 16 km/hr", met: 14.5 },
 
-  // Walking
-  { id: "walking_2mph", name: "Walking 2 mph", met: 2.8 },
-  { id: "walking_3mph", name: "Walking 3 mph", met: 3.5 },
-  { id: "walking_4mph", name: "Walking 4 mph (brisk)", met: 5.0 },
-  { id: "walking_5mph", name: "Walking 5 mph (very brisk)", met: 6.3 },
+  // Walking (km/hr)
+  { id: "walking_3kmh", name: "Walking 3 km/hr", met: 2.8 },
+  { id: "walking_5kmh", name: "Walking 5 km/hr", met: 3.5 },
+  { id: "walking_6kmh", name: "Walking 6 km/hr (brisk)", met: 5.0 },
+  { id: "walking_8kmh", name: "Walking 8 km/hr (very brisk)", met: 6.3 },
 
-  // Cycling
-  { id: "cycling_10mph", name: "Cycling 10 mph (leisurely)", met: 5.8 },
-  { id: "cycling_12mph", name: "Cycling 12 mph (moderate)", met: 7.5 },
-  { id: "cycling_14mph", name: "Cycling 14 mph (vigorous)", met: 9.7 },
-  { id: "cycling_16mph", name: "Cycling 16 mph (intense)", met: 12.3 },
+  // Cycling (km/hr)
+  { id: "cycling_16kmh", name: "Cycling 16 km/hr (leisurely)", met: 5.8 },
+  { id: "cycling_19kmh", name: "Cycling 19 km/hr (moderate)", met: 7.5 },
+  { id: "cycling_22kmh", name: "Cycling 22 km/hr (vigorous)", met: 9.7 },
+  { id: "cycling_26kmh", name: "Cycling 26 km/hr (intense)", met: 12.3 },
   { id: "stationary_cycling", name: "Stationary Cycling (moderate)", met: 7.5 },
 
   // Swimming

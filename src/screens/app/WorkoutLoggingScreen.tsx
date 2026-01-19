@@ -23,7 +23,14 @@ import { useNavigation } from "@react-navigation/native";
 import { formatDate } from "@utils/dateUtils";
 import { formatDuration } from "@utils/workoutUtils";
 import React, { useMemo, useState } from "react";
-import { Alert, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+    Alert,
+    Modal,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface WorkoutLoggingScreenProps {}
@@ -58,6 +65,12 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
   const [cardioIntensity, setCardioIntensity] = useState<
     "light" | "moderate" | "vigorous"
   >("moderate");
+  const [cardioMode, setCardioMode] = useState<"activity" | "manual">(
+    "activity",
+  );
+  const [manualCardioDistance, setManualCardioDistance] = useState("");
+  const [manualCardioCalories, setManualCardioCalories] = useState("");
+  const [manualCardioDuration, setManualCardioDuration] = useState("");
 
   // Yoga state
   const [selectedYogaStyle, setSelectedYogaStyle] = useState<string | null>(
@@ -209,6 +222,64 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
       Alert.alert("Success", "Cardio workout logged!");
     } catch (error) {
       console.error("Error logging cardio workout:", error);
+      Alert.alert("Error", "Failed to log cardio workout");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Handle manual cardio workout entry
+   */
+  const handleAddManualCardioWorkout = async () => {
+    if (!user || !manualCardioCalories) {
+      Alert.alert("Error", "Please enter calories burned");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const distance = manualCardioDistance
+        ? parseFloat(manualCardioDistance)
+        : undefined;
+      const calories = Math.round(parseFloat(manualCardioCalories));
+      const duration = manualCardioDuration
+        ? parseInt(manualCardioDuration)
+        : 30;
+
+      // Generate a proper UUID for workout_id
+      const generateUUID = () => {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+          /[xy]/g,
+          function (c) {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          },
+        );
+      };
+
+      // Log manual cardio entry directly
+      await addWorkoutLog.mutateAsync({
+        user_id: user.id,
+        workout_id: generateUUID(),
+        duration_minutes: duration,
+        distance_km: distance,
+        calories_burned: calories,
+        date,
+        notes: notes || undefined,
+      } as any);
+
+      // Reset form
+      setManualCardioDistance("");
+      setManualCardioCalories("");
+      setManualCardioDuration("30");
+      setNotes("");
+      setCardioMode("activity");
+      setShowWorkoutModal(false);
+      Alert.alert("Success", "Cardio workout logged!");
+    } catch (error) {
+      console.error("Error logging manual cardio:", error);
       Alert.alert("Error", "Failed to log cardio workout");
     } finally {
       setLoading(false);
@@ -547,7 +618,21 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
       {/* Workout Modal */}
       <Modal
         visible={showWorkoutModal}
-        onRequestClose={() => setShowWorkoutModal(false)}
+        onRequestClose={() => {
+          setShowWorkoutModal(false);
+          setSelectedExercise(null);
+          setSelectedCardioActivity(null);
+          setSelectedYogaStyle(null);
+          setSelectedHIIT(null);
+          setCardioMode("activity");
+          setManualCardioDistance("");
+          setManualCardioCalories("");
+          setManualCardioDuration("30");
+          setNotes("");
+          setDuration("30");
+          setDistance("");
+          setCaloriesBurned("");
+        }}
         animationType="slide"
       >
         <View style={{ flex: 1, paddingTop: 40 }}>
@@ -741,143 +826,267 @@ export const WorkoutLoggingScreen: React.FC<WorkoutLoggingScreenProps> = () => {
             {/* CARDIO */}
             {selectedType === "cardio" && (
               <>
-                {/* Activity Selection */}
-                <View style={{ marginBottom: 16 }}>
-                  <Text
+                {/* Cardio Mode Selector */}
+                <View
+                  style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}
+                >
+                  <TouchableOpacity
+                    onPress={() => setCardioMode("activity")}
                     style={{
-                      fontSize: 13,
-                      fontWeight: "600",
-                      color: COLORS.neutral.textDark,
-                      marginBottom: 8,
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      backgroundColor:
+                        cardioMode === "activity"
+                          ? COLORS.primary
+                          : COLORS.neutral.border,
                     }}
                   >
-                    Activity
-                  </Text>
-                  <ScrollView nestedScrollEnabled style={{ maxHeight: 200 }}>
-                    {CARDIO_ACTIVITIES.map((activity) => (
-                      <TouchableOpacity
-                        key={activity.id}
-                        onPress={() => setSelectedCardioActivity(activity.id)}
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color:
+                          cardioMode === "activity"
+                            ? "white"
+                            : COLORS.neutral.text,
+                        textAlign: "center",
+                      }}
+                    >
+                      Activity
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setCardioMode("manual")}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      backgroundColor:
+                        cardioMode === "manual"
+                          ? COLORS.primary
+                          : COLORS.neutral.border,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color:
+                          cardioMode === "manual"
+                            ? "white"
+                            : COLORS.neutral.text,
+                        textAlign: "center",
+                      }}
+                    >
+                      Manual Entry
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {cardioMode === "activity" ? (
+                  <>
+                    {/* Activity Selection */}
+                    <View style={{ marginBottom: 16 }}>
+                      <Text
                         style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 10,
-                          borderRadius: 8,
-                          borderWidth:
-                            selectedCardioActivity === activity.id ? 2 : 1,
-                          borderColor:
-                            selectedCardioActivity === activity.id
-                              ? COLORS.primary
-                              : COLORS.neutral.border,
-                          backgroundColor:
-                            selectedCardioActivity === activity.id
-                              ? "#f0f9ff"
-                              : "white",
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: COLORS.neutral.textDark,
                           marginBottom: 8,
                         }}
                       >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontWeight: "600",
-                            color:
-                              selectedCardioActivity === activity.id
-                                ? COLORS.primary
-                                : COLORS.neutral.textDark,
-                          }}
-                        >
-                          {activity.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-
-                {/* Duration, Distance, Intensity */}
-                <TextInput
-                  label="Duration (minutes)"
-                  placeholder="30"
-                  value={duration}
-                  onChangeText={setDuration}
-                  keyboardType="number-pad"
-                  style={{ marginBottom: 12 }}
-                />
-
-                <TextInput
-                  label="Distance (km) - Optional"
-                  placeholder="5"
-                  value={distance}
-                  onChangeText={setDistance}
-                  keyboardType="decimal-pad"
-                  style={{ marginBottom: 12 }}
-                />
-
-                <View style={{ marginBottom: 16 }}>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "600",
-                      color: COLORS.neutral.textDark,
-                      marginBottom: 8,
-                    }}
-                  >
-                    Intensity
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    {(["light", "moderate", "vigorous"] as const).map(
-                      (intensity) => (
-                        <TouchableOpacity
-                          key={intensity}
-                          onPress={() => setCardioIntensity(intensity)}
-                          style={{
-                            flex: 1,
-                            paddingVertical: 8,
-                            borderRadius: 8,
-                            borderWidth: 2,
-                            borderColor:
-                              cardioIntensity === intensity
-                                ? COLORS.primary
-                                : COLORS.neutral.border,
-                            backgroundColor:
-                              cardioIntensity === intensity
-                                ? "#f0f9ff"
-                                : "white",
-                          }}
-                        >
-                          <Text
+                        Activity
+                      </Text>
+                      <ScrollView
+                        nestedScrollEnabled
+                        style={{ maxHeight: 200 }}
+                      >
+                        {CARDIO_ACTIVITIES.map((activity) => (
+                          <TouchableOpacity
+                            key={activity.id}
+                            onPress={() =>
+                              setSelectedCardioActivity(activity.id)
+                            }
                             style={{
-                              fontSize: 12,
-                              color:
-                                cardioIntensity === intensity
+                              paddingHorizontal: 12,
+                              paddingVertical: 10,
+                              borderRadius: 8,
+                              borderWidth:
+                                selectedCardioActivity === activity.id ? 2 : 1,
+                              borderColor:
+                                selectedCardioActivity === activity.id
                                   ? COLORS.primary
-                                  : COLORS.neutral.text,
-                              fontWeight: "600",
-                              textAlign: "center",
+                                  : COLORS.neutral.border,
+                              backgroundColor:
+                                selectedCardioActivity === activity.id
+                                  ? "#f0f9ff"
+                                  : "white",
+                              marginBottom: 8,
                             }}
                           >
-                            {intensity.charAt(0).toUpperCase() +
-                              intensity.slice(1)}
-                          </Text>
-                        </TouchableOpacity>
-                      ),
-                    )}
-                  </View>
-                </View>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "600",
+                                color:
+                                  selectedCardioActivity === activity.id
+                                    ? COLORS.primary
+                                    : COLORS.neutral.textDark,
+                              }}
+                            >
+                              {activity.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
 
-                <TextInput
-                  label="Notes"
-                  placeholder="Optional notes"
-                  value={notes}
-                  onChangeText={setNotes}
-                  multiline
-                  style={{ marginBottom: 16 }}
-                />
+                    {/* Duration, Distance, Intensity */}
+                    <TextInput
+                      label="Duration (minutes)"
+                      placeholder="30"
+                      value={duration}
+                      onChangeText={setDuration}
+                      keyboardType="number-pad"
+                      style={{ marginBottom: 12 }}
+                    />
 
-                <Button
-                  title="Log Cardio Workout"
-                  onPress={handleAddCardioWorkout}
-                  disabled={loading || !selectedCardioActivity}
-                  fullWidth
-                />
+                    <TextInput
+                      label="Distance (km) - Optional"
+                      placeholder="5"
+                      value={distance}
+                      onChangeText={setDistance}
+                      keyboardType="decimal-pad"
+                      style={{ marginBottom: 12 }}
+                    />
+
+                    <View style={{ marginBottom: 16 }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: COLORS.neutral.textDark,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Intensity
+                      </Text>
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        {(["light", "moderate", "vigorous"] as const).map(
+                          (intensity) => (
+                            <TouchableOpacity
+                              key={intensity}
+                              onPress={() => setCardioIntensity(intensity)}
+                              style={{
+                                flex: 1,
+                                paddingVertical: 8,
+                                borderRadius: 8,
+                                borderWidth: 2,
+                                borderColor:
+                                  cardioIntensity === intensity
+                                    ? COLORS.primary
+                                    : COLORS.neutral.border,
+                                backgroundColor:
+                                  cardioIntensity === intensity
+                                    ? "#f0f9ff"
+                                    : "white",
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 12,
+                                  color:
+                                    cardioIntensity === intensity
+                                      ? COLORS.primary
+                                      : COLORS.neutral.text,
+                                  fontWeight: "600",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {intensity.charAt(0).toUpperCase() +
+                                  intensity.slice(1)}
+                              </Text>
+                            </TouchableOpacity>
+                          ),
+                        )}
+                      </View>
+                    </View>
+
+                    <TextInput
+                      label="Notes"
+                      placeholder="Optional notes"
+                      value={notes}
+                      onChangeText={setNotes}
+                      multiline
+                      style={{ marginBottom: 16 }}
+                    />
+
+                    <Button
+                      title="Log Cardio Workout"
+                      onPress={handleAddCardioWorkout}
+                      disabled={loading || !selectedCardioActivity}
+                      fullWidth
+                    />
+                  </>
+                ) : (
+                  <>
+                    {/* Manual Cardio Entry */}
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: COLORS.neutral.textDark,
+                        marginBottom: 16,
+                      }}
+                    >
+                      Enter Cardio Details
+                    </Text>
+
+                    <TextInput
+                      label="Duration (minutes) - Optional"
+                      placeholder="30"
+                      value={manualCardioDuration}
+                      onChangeText={setManualCardioDuration}
+                      keyboardType="number-pad"
+                      style={{ marginBottom: 12 }}
+                    />
+
+                    <TextInput
+                      label="Distance (km) - Optional"
+                      placeholder="5"
+                      value={manualCardioDistance}
+                      onChangeText={setManualCardioDistance}
+                      keyboardType="decimal-pad"
+                      style={{ marginBottom: 12 }}
+                    />
+
+                    <TextInput
+                      label="Calories Burned"
+                      placeholder="300"
+                      value={manualCardioCalories}
+                      onChangeText={setManualCardioCalories}
+                      keyboardType="number-pad"
+                      style={{ marginBottom: 16 }}
+                    />
+
+                    <TextInput
+                      label="Notes"
+                      placeholder="Optional notes"
+                      value={notes}
+                      onChangeText={setNotes}
+                      multiline
+                      style={{ marginBottom: 16 }}
+                    />
+
+                    <Button
+                      title="Log Manual Cardio"
+                      onPress={handleAddManualCardioWorkout}
+                      disabled={loading}
+                      fullWidth
+                    />
+                  </>
+                )}
               </>
             )}
 
