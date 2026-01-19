@@ -202,8 +202,11 @@ async function ensureUSDAPlaceholderFoodExists(): Promise<void> {
   }
 }
 
-// Initialize placeholder on service load
-ensureUSDAPlaceholderFoodExists();
+// Initialize placeholder on service load (async, non-blocking)
+// Don't wait for it - let it happen in the background
+ensureUSDAPlaceholderFoodExists().catch((err) => {
+  console.error("[FoodService] Background placeholder init error:", err);
+});
 
 /**
  * Search foods using USDA FoodData Central API
@@ -273,16 +276,19 @@ export async function searchFoods(
 
     const data: USDASearchResponse = await response.json();
 
-    // Cache search results
-    const searches = await AsyncStorage.getItem(SEARCH_CACHE_KEY)
+    // Cache search results (non-blocking - fire and forget)
+    AsyncStorage.getItem(SEARCH_CACHE_KEY)
       .then((s: string | null) => (s ? JSON.parse(s) : {}))
-      .catch(() => ({}));
-    const updated = { ...searches };
-    updated[`${query}_${pageNumber}`] = {
-      results: data.foods,
-      cachedAt: Date.now(),
-    };
-    await AsyncStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(updated));
+      .then((searches: any) => {
+        searches[`${query}_${pageNumber}`] = {
+          results: data.foods,
+          cachedAt: Date.now(),
+        };
+        return AsyncStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(searches));
+      })
+      .catch((err) => {
+        console.warn("[FoodService] Cache save error (non-blocking):", err);
+      });
 
     return data.foods;
   } catch (error) {
@@ -349,13 +355,15 @@ export async function getFoodDetails(
       data.description,
     );
 
-    // Cache food details
+    // Cache food details (non-blocking - don't wait for cache write)
     const cache = foodCache ? JSON.parse(foodCache) : {};
     cache[fdcId] = {
       ...data,
       cachedAt: Date.now(),
     };
-    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cache)).catch((err) => {
+      console.warn("[FoodService] Failed to cache food details:", err);
+    });
 
     return data;
   } catch (error) {

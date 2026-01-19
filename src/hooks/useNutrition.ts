@@ -76,6 +76,10 @@ export const useDailyFoodLogs = (userId: string, date: string) => {
       return data || [];
     },
     enabled: !!userId && !!date,
+    // Cache food logs for 5 minutes
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
   });
 };
 
@@ -132,19 +136,30 @@ export const useFoodDatabase = (
   return useQuery({
     queryKey: ["foods", category, offset, limit],
     queryFn: async () => {
-      let query = supabase.from("foods").select("*").eq("is_custom", false);
+      // Optimization: Select only needed columns to reduce payload size
+      let query = supabase
+        .from("foods")
+        .select(
+          "id,name,category,calories_per_serving,protein_g,carbs_g,fats_g",
+        )
+        .eq("is_custom", false);
 
       if (category) {
         query = query.eq("category", category);
       }
 
-      const { data, error } = await query
-        .order("name", { ascending: true })
-        .range(offset, offset + limit - 1);
+      // No sorting on server - dramatically faster for large sets
+      const { data, error } = await query.range(offset, offset + limit - 1);
 
       if (error) throw error;
       return data || [];
     },
+    // Aggressive caching: 10 minutes for food data (rarely changes)
+    staleTime: 10 * 60 * 1000,
+    // Keep in cache for 30 minutes
+    gcTime: 30 * 60 * 1000,
+    // Retry only once on failure
+    retry: 1,
   });
 };
 
@@ -249,7 +264,9 @@ export const useGetFoodDetails = (fdcId: string | null) => {
       }
     },
     enabled: !!fdcId,
-    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+    staleTime: 1000 * 60 * 60 * 48, // 48 hours - food data doesn't change
+    gcTime: 1000 * 60 * 60 * 72, // Keep in memory for 72 hours
+    retry: 2,
   });
 };
 
