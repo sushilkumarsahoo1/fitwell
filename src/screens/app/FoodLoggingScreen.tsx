@@ -27,7 +27,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 interface FoodLoggingScreenProps {}
 
-type FoodSource = "database" | "usda";
+type FoodSource = "database" | "usda" | "manual";
 
 export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
   const navigation = useNavigation();
@@ -44,6 +44,15 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
   const [selectedFdcId, setSelectedFdcId] = useState<string | null>(null);
   const [categorySearch, setCategorySearch] = useState("");
   const [foodOffset, setFoodOffset] = useState(0);
+
+  // Manual Entry Form State
+  const [manualFoodName, setManualFoodName] = useState("");
+  const [manualWeight, setManualWeight] = useState("");
+  const [manualCalories, setManualCalories] = useState("");
+  const [manualProtein, setManualProtein] = useState("");
+  const [manualCarbs, setManualCarbs] = useState("");
+  const [manualFats, setManualFats] = useState("");
+
   const FOODS_PER_PAGE = 1000;
 
   // Hook data fetching
@@ -64,6 +73,62 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
   const addFoodLog = useAddFoodLog();
   const logUSDAFood = useLogUSDAFood();
   const deleteFoodLog = useDeleteFoodLog();
+
+  /**
+   * Handle logging manual food entry
+   */
+  const handleAddManualFood = async () => {
+    if (
+      !manualFoodName ||
+      !manualWeight ||
+      !manualCalories ||
+      !manualProtein ||
+      !manualCarbs ||
+      !manualFats ||
+      !user
+    ) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const weight = parseFloat(manualWeight);
+      const calories = Math.round(parseFloat(manualCalories));
+      const protein = Math.round(parseFloat(manualProtein) * 10) / 10;
+      const carbs = Math.round(parseFloat(manualCarbs) * 10) / 10;
+      const fats = Math.round(parseFloat(manualFats) * 10) / 10;
+
+      await addFoodLog.mutateAsync({
+        user_id: user.id,
+        food_id: "00000000-0000-0000-0000-000000000002", // Placeholder UUID for manual foods
+        food_name: manualFoodName,
+        quantity: weight,
+        quantity_unit: "g",
+        meal_type: selectedMeal as any,
+        date,
+        calories,
+        protein_g: protein,
+        carbs_g: carbs,
+        fats_g: fats,
+      } as any);
+
+      // Reset manual entry form
+      setManualFoodName("");
+      setManualWeight("");
+      setManualCalories("");
+      setManualProtein("");
+      setManualCarbs("");
+      setManualFats("");
+      setShowFoodModal(false);
+      Alert.alert("Success", "Food logged successfully!");
+    } catch (error) {
+      console.error("Add manual food error:", error);
+      Alert.alert("Error", "Failed to log food");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddFood = async (foodId: string) => {
     const food = foods.find((f) => f.id === foodId);
@@ -450,6 +515,12 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
           setUSDASearch("");
           setCategorySearch("");
           setSelectedFdcId(null);
+          setManualFoodName("");
+          setManualWeight("");
+          setManualCalories("");
+          setManualProtein("");
+          setManualCarbs("");
+          setManualFats("");
         }}
         animationType="slide"
       >
@@ -485,6 +556,12 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
                   setUSDASearch("");
                   setCategorySearch("");
                   setSelectedFdcId(null);
+                  setManualFoodName("");
+                  setManualWeight("");
+                  setManualCalories("");
+                  setManualProtein("");
+                  setManualCarbs("");
+                  setManualFats("");
                 }}
               >
                 <Text style={{ fontSize: 16, color: COLORS.primary }}>✕</Text>
@@ -515,6 +592,30 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
                   }}
                 >
                   App Foods
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setFoodSource("manual")}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  backgroundColor:
+                    foodSource === "manual"
+                      ? COLORS.primary
+                      : COLORS.neutral.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color:
+                      foodSource === "manual" ? "white" : COLORS.neutral.text,
+                    textAlign: "center",
+                  }}
+                >
+                  Manual Entry
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -751,6 +852,83 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
                     )}
                   </>
                 )}
+              </>
+            ) : foodSource === "manual" ? (
+              <>
+                {/* Manual Food Entry Form */}
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: COLORS.neutral.textDark,
+                    marginBottom: 16,
+                  }}
+                >
+                  Enter Food Details
+                </Text>
+
+                <TextInput
+                  label="Food Name"
+                  placeholder="e.g., Homemade Pizza, Rice Bowl"
+                  value={manualFoodName}
+                  onChangeText={setManualFoodName}
+                  style={{ marginBottom: 16 }}
+                />
+
+                <TextInput
+                  label="Weight (grams)"
+                  placeholder="e.g., 150"
+                  value={manualWeight}
+                  onChangeText={setManualWeight}
+                  keyboardType="decimal-pad"
+                  style={{ marginBottom: 16 }}
+                />
+
+                <TextInput
+                  label="Calories"
+                  placeholder="e.g., 250"
+                  value={manualCalories}
+                  onChangeText={setManualCalories}
+                  keyboardType="decimal-pad"
+                  style={{ marginBottom: 16 }}
+                />
+
+                <View
+                  style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}
+                >
+                  <TextInput
+                    label="Protein (g)"
+                    placeholder="e.g., 15"
+                    value={manualProtein}
+                    onChangeText={setManualProtein}
+                    keyboardType="decimal-pad"
+                    style={{ flex: 1 }}
+                  />
+                  <TextInput
+                    label="Carbs (g)"
+                    placeholder="e.g., 30"
+                    value={manualCarbs}
+                    onChangeText={setManualCarbs}
+                    keyboardType="decimal-pad"
+                    style={{ flex: 1 }}
+                  />
+                </View>
+
+                <TextInput
+                  label="Fats (g)"
+                  placeholder="e.g., 8"
+                  value={manualFats}
+                  onChangeText={setManualFats}
+                  keyboardType="decimal-pad"
+                  style={{ marginBottom: 20 }}
+                />
+
+                <Button
+                  title="Log Food"
+                  onPress={handleAddManualFood}
+                  disabled={loading}
+                  fullWidth
+                />
               </>
             ) : (
               <>
