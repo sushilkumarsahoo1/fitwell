@@ -1,9 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@services/supabase";
-import type { WeightLog, WaterLog, Habit, HabitLog } from "@types/index";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Habit, HabitLog, WaterLog, WeightLog } from "@types/index";
 
 // Weight Tracking
-export const useWeightLogs = (userId: string, dateRange?: { start: string; end: string }) => {
+export const useWeightLogs = (
+  userId: string,
+  dateRange?: { start: string; end: string },
+) => {
   return useQuery({
     queryKey: ["weightLogs", userId, dateRange],
     queryFn: async () => {
@@ -14,9 +17,7 @@ export const useWeightLogs = (userId: string, dateRange?: { start: string; end: 
         .order("date", { ascending: false });
 
       if (dateRange) {
-        query = query
-          .gte("date", dateRange.start)
-          .lte("date", dateRange.end);
+        query = query.gte("date", dateRange.start).lte("date", dateRange.end);
       } else {
         // Last 30 days
         const thirtyDaysAgo = new Date();
@@ -30,6 +31,10 @@ export const useWeightLogs = (userId: string, dateRange?: { start: string; end: 
       return data as WeightLog[];
     },
     enabled: !!userId,
+    // Cache weight logs for 1 hour
+    staleTime: 60 * 60 * 1000,
+    gcTime: 120 * 60 * 1000,
+    retry: 1,
   });
 };
 
@@ -37,7 +42,9 @@ export const useAddWeightLog = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (weightLog: Omit<WeightLog, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (
+      weightLog: Omit<WeightLog, "id" | "created_at" | "updated_at">,
+    ) => {
       const { data, error } = await supabase
         .from("weight_logs")
         .insert([weightLog])
@@ -75,7 +82,9 @@ export const useAddWaterLog = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (waterLog: Omit<WaterLog, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (
+      waterLog: Omit<WaterLog, "id" | "created_at" | "updated_at">,
+    ) => {
       const { data, error } = await supabase
         .from("water_logs")
         .insert([waterLog])
@@ -130,7 +139,9 @@ export const useAddHabit = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (habit: Omit<Habit, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (
+      habit: Omit<Habit, "id" | "created_at" | "updated_at">,
+    ) => {
       const { data, error } = await supabase
         .from("habits")
         .insert([habit])
@@ -186,9 +197,7 @@ export const useAddHabitLog = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      habitLog: Omit<HabitLog, "id" | "created_at">
-    ) => {
+    mutationFn: async (habitLog: Omit<HabitLog, "id" | "created_at">) => {
       const { data, error } = await supabase
         .from("habit_logs")
         .insert([habitLog])
@@ -236,15 +245,15 @@ export const useDailyStats = (userId: string, date: string) => {
 
       const totalCalories = (foodLogs.data || []).reduce(
         (sum, log) => sum + (log.calories || 0),
-        0
+        0,
       );
       const totalWater = (waterLogs.data || []).reduce(
         (sum, log) => sum + (log.amount_ml || 0),
-        0
+        0,
       );
       const totalCaloriesBurned = (workoutLogs.data || []).reduce(
         (sum, log) => sum + (log.calories_burned || 0),
-        0
+        0,
       );
 
       return {
@@ -257,5 +266,9 @@ export const useDailyStats = (userId: string, date: string) => {
       };
     },
     enabled: !!userId && !!date,
+    // Cache daily stats for 5 minutes (updates frequently with new entries)
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
   });
 };

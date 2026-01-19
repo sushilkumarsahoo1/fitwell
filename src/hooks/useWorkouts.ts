@@ -16,6 +16,10 @@ export const useWorkoutTemplates = (userId: string) => {
       return data as Workout[];
     },
     enabled: !!userId,
+    // Cache workout templates for 1 hour
+    staleTime: 60 * 60 * 1000,
+    gcTime: 120 * 60 * 1000,
+    retry: 1,
   });
 };
 
@@ -34,6 +38,10 @@ export const useDailyWorkoutLogs = (userId: string, date: string) => {
       return data || [];
     },
     enabled: !!userId && !!date,
+    // Cache daily workouts for 5 minutes
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
   });
 };
 
@@ -106,6 +114,10 @@ export const useWeeklyWorkoutSummary = (userId: string, weekStart: string) => {
       };
     },
     enabled: !!userId && !!weekStart,
+    // Cache weekly summary for 1 hour
+    staleTime: 60 * 60 * 1000,
+    gcTime: 120 * 60 * 1000,
+    retry: 1,
   });
 };
 /**

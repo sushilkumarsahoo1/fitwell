@@ -18,6 +18,10 @@ export const useProfile = (userId: string) => {
       return data as UserProfile;
     },
     enabled: !!userId,
+    // Cache profile for 30 minutes (rarely changes)
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    retry: 2,
   });
 };
 
