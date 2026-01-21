@@ -3,6 +3,7 @@ import { supabase } from "@services/supabase";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserProfile } from "@types/index";
 import { recordCacheHit, recordCacheMiss } from "@utils/foodUtils";
+import type { FitnessGoal } from "@utils/nutritionUtils";
 
 export const useProfile = (userId: string) => {
   return useQuery({
@@ -39,6 +40,73 @@ export const useUpdateProfile = () => {
 
       if (error) throw error;
       return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+};
+
+export const useUpdateUserGoal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variables: {
+      userId: string;
+      profileId: string;
+      newGoal: FitnessGoal;
+      newCalorieTarget: number;
+      previousGoal?: FitnessGoal;
+      previousCalorieTarget?: number;
+    }) => {
+      const {
+        userId,
+        profileId,
+        newGoal,
+        newCalorieTarget,
+        previousGoal,
+        previousCalorieTarget,
+      } = variables;
+
+      // Update profile with new goal and calorie target
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          fitness_goal: newGoal,
+          daily_calorie_target: newCalorieTarget,
+        })
+        .eq("id", profileId)
+        .select()
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Log the goal change in history
+      if (previousGoal) {
+        const { error: historyError } = await supabase
+          .from("goal_change_history")
+          .insert([
+            {
+              user_id: userId,
+              profile_id: profileId,
+              previous_goal: previousGoal,
+              new_goal: newGoal,
+              previous_calorie_target: previousCalorieTarget || null,
+              new_calorie_target: newCalorieTarget,
+              changed_at: new Date().toISOString(),
+            },
+          ]);
+
+        if (historyError) {
+          console.warn(
+            "[useUpdateUserGoal] Warning: Failed to log goal change:",
+            historyError,
+          );
+          // Don't throw - the profile update was successful
+        }
+      }
+
+      return profileData;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });

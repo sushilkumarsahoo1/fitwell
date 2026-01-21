@@ -14,7 +14,16 @@ export interface UserProfile {
   gender: "male" | "female" | "other";
   height_cm: number;
   weight_kg: number;
-  fitness_goal: "lose_fat" | "maintain" | "gain_muscle";
+  fitness_goal:
+    | "lose_fat"
+    | "maintain"
+    | "gain_muscle"
+    | "mild_loss"
+    | "normal_loss"
+    | "extreme_loss"
+    | "mild_gain"
+    | "normal_gain"
+    | "extreme_gain";
   activity_level: "sedentary" | "light" | "moderate" | "active" | "very_active";
   daily_calorie_target: number;
   created_at: string;

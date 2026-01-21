@@ -14,6 +14,7 @@ import { useNavigation } from "@react-navigation/native";
 import { extractNutrition } from "@services/foodService";
 import { formatDate } from "@utils/dateUtils";
 import { convertToGrams, type QuantityUnit } from "@utils/foodUtils";
+import { calculateDailyCalorieTarget } from "@utils/nutritionUtils";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -54,6 +55,25 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
   const [manualFats, setManualFats] = useState("");
 
   const FOODS_PER_PAGE = 1000;
+
+  // Calculate goal-based calorie target
+  const goalCalorieTarget = profile
+    ? calculateDailyCalorieTarget(
+        profile.weight_kg,
+        profile.height_cm,
+        profile.age,
+        profile.gender,
+        profile.activity_level,
+        (profile.fitness_goal as
+          | "maintain"
+          | "mild_loss"
+          | "normal_loss"
+          | "extreme_loss"
+          | "mild_gain"
+          | "normal_gain"
+          | "extreme_gain") || "maintain",
+      )
+    : 2000;
 
   // Hook data fetching
   const { data: foodLogs = [], isLoading: logsLoading } = useDailyFoodLogs(
@@ -316,8 +336,7 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
                   color: COLORS.primary,
                 }}
               >
-                {totalNutrition.calories} /{" "}
-                {profile?.daily_calorie_target || 2000}
+                {totalNutrition.calories} / {goalCalorieTarget}
               </Text>
             </View>
             <View

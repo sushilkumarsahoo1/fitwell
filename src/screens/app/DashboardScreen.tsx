@@ -1,17 +1,26 @@
+import type { GoalType } from "@components/common";
 import {
     Card,
+    GoalSelector,
     LoadingSpinner,
     ProgressRing,
     StatBox,
 } from "@components/common";
+import { ExtremeGoalWarning } from "@components/modals/ExtremeGoalWarning";
 import { COLORS, MEAL_TYPES } from "@constants/index";
 import { useAuth } from "@context/AuthContext";
-import { useDailyFoodLogs } from "@hooks/useNutrition";
+import { useDailyFoodLogs, useUpdateUserGoal } from "@hooks/useNutrition";
 import { useDailyWorkoutLogs } from "@hooks/useWorkouts";
 import { useNavigation } from "@react-navigation/native";
 import { formatDate } from "@utils/dateUtils";
-import React, { useState } from "react";
+import type { FitnessGoal } from "@utils/nutritionUtils";
 import {
+    calculateDailyCalorieTarget,
+    shouldShowGoalWarning,
+} from "@utils/nutritionUtils";
+import React, { useEffect, useState } from "react";
+import {
+    Alert,
     RefreshControl,
     ScrollView,
     Text,
@@ -24,9 +33,59 @@ interface DashboardScreenProps {}
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = () => {
   const navigation = useNavigation();
-  const { user, profile } = useAuth();
+  const { user, profile, fetchProfile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [date] = useState(formatDate(new Date()));
+  const [warningModalVisible, setWarningModalVisible] = useState(false);
+  const [pendingGoal, setPendingGoal] = useState<GoalType | null>(null);
+  const [currentGoal, setCurrentGoal] = useState<GoalType>(
+    (profile?.fitness_goal as GoalType) || "maintain",
+  );
+
+  // Calculate maintenance calories first (default)
+  const maintenanceCalories = profile
+    ? calculateDailyCalorieTarget(
+        profile.weight_kg,
+        profile.height_cm,
+        profile.age,
+        profile.gender,
+        profile.activity_level,
+        "maintain",
+      )
+    : 2000;
+
+  // Initialize currentCalories with profile's target, or default to maintenance
+  const [currentCalories, setCurrentCalories] =
+    useState<number>(maintenanceCalories);
+
+  // Sync with profile updates from database
+  useEffect(() => {
+    if (profile?.fitness_goal) {
+      const goal = profile.fitness_goal as GoalType;
+      setCurrentGoal(goal);
+
+      // Calculate calorie target for the current goal
+      const goalPercentages: Record<GoalType, number> = {
+        extreme_loss: 57,
+        normal_loss: 79,
+        mild_loss: 89,
+        maintain: 100,
+        mild_gain: 111,
+        normal_gain: 121,
+        extreme_gain: 143,
+      };
+
+      const percentage = goalPercentages[goal];
+      const targetCalories = Math.round(
+        (maintenanceCalories * percentage) / 100,
+      );
+      setCurrentCalories(targetCalories);
+    } else {
+      // Default to maintain if no goal selected
+      setCurrentGoal("maintain");
+      setCurrentCalories(maintenanceCalories);
+    }
+  }, [maintenanceCalories, profile?.fitness_goal]);
 
   const { data: foodLogs = [], isLoading: foodLoading } = useDailyFoodLogs(
     user?.id || "",
@@ -35,7 +94,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = () => {
   const { data: workoutLogs = [], isLoading: workoutLoading } =
     useDailyWorkoutLogs(user?.id || "", date);
 
-  const calorieTarget = profile?.daily_calorie_target || 2000;
+  const updateGoalMutation = useUpdateUserGoal();
+
+  const calorieTarget = currentCalories;
   const totalCalories = foodLogs.reduce(
     (sum, log) => sum + (log.calories || 0),
     0,
@@ -53,6 +114,79 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = () => {
 
   const caloriePercentage = (totalCalories / calorieTarget) * 100;
   const remainingCalories = calorieTarget - totalCalories;
+
+  const handleGoalSelection = (goal: GoalType) => {
+    setPendingGoal(goal);
+
+    if (shouldShowGoalWarning(goal as FitnessGoal, currentCalories)) {
+      setWarningModalVisible(true);
+    } else {
+      confirmGoalChange(goal);
+    }
+  };
+
+  const confirmGoalChange = async (goal: GoalType) => {
+    try {
+      if (!user?.id || !profile?.id) {
+        Alert.alert("Error", "User profile information not available");
+        return;
+      }
+
+      // Calculate new calorie target based on maintenance calories
+      const goalPercentages: Record<GoalType, number> = {
+        extreme_loss: 57,
+        normal_loss: 79,
+        mild_loss: 89,
+        maintain: 100,
+        mild_gain: 111,
+        normal_gain: 121,
+        extreme_gain: 143,
+      };
+
+      const percentage = goalPercentages[goal];
+      const newCalorieTarget = Math.round(
+        (maintenanceCalories * percentage) / 100,
+      );
+
+      // Update optimistically
+      const previousGoal = currentGoal;
+      const previousCalories = currentCalories;
+      setCurrentGoal(goal);
+      setCurrentCalories(newCalorieTarget);
+
+      // Call mutation to update in database
+      await updateGoalMutation.mutateAsync({
+        userId: user.id,
+        profileId: profile.id,
+        newGoal: goal as FitnessGoal,
+        newCalorieTarget,
+        previousGoal: previousGoal as FitnessGoal,
+        previousCalorieTarget: previousCalories,
+      });
+
+      // Refetch the profile to ensure state is synced with database
+      if (fetchProfile) {
+        await fetchProfile();
+      }
+
+      Alert.alert(
+        "Goal Updated",
+        `Your daily calorie target is now ${newCalorieTarget} calories`,
+      );
+    } catch (error) {
+      console.error("Error updating goal:", error);
+      Alert.alert(
+        "Error",
+        "Failed to update your fitness goal. Please try again.",
+      );
+      // Revert optimistic update
+      setCurrentGoal(currentGoal);
+      setCurrentCalories(currentCalories);
+    } finally {
+      setPendingGoal(null);
+      setWarningModalVisible(false);
+    }
+  };
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -107,6 +241,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = () => {
             })}
           </Text>
         </View>
+
+        {/* Goal Selector Card */}
+        <Card
+          style={{
+            marginBottom: 16,
+            padding: 12,
+          }}
+        >
+          <GoalSelector
+            selectedGoal={currentGoal}
+            onSelectGoal={handleGoalSelection}
+            maintenanceCalories={maintenanceCalories}
+            loading={updateGoalMutation.isPending}
+          />
+        </Card>
 
         {/* Calories Card */}
         <Card
@@ -348,6 +497,36 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = () => {
             </>
           )}
         </Card>
+
+        {/* Extreme Goal Warning Modal */}
+        {pendingGoal && (
+          <ExtremeGoalWarning
+            visible={warningModalVisible}
+            goalLabel={
+              pendingGoal === "extreme_loss"
+                ? "Extreme Weight Loss (1 kg/week)"
+                : pendingGoal === "extreme_gain"
+                  ? "Extreme Weight Gain (1 kg/week)"
+                  : ""
+            }
+            weeklyRate={
+              pendingGoal === "extreme_loss" ? "1 kg/week" : "1 kg/week"
+            }
+            dailyCalories={Math.round(
+              (maintenanceCalories *
+                (pendingGoal === "extreme_loss" ? 57 : 143)) /
+                100,
+            )}
+            isLoss={pendingGoal === "extreme_loss"}
+            onAcknowledge={() => {
+              confirmGoalChange(pendingGoal);
+            }}
+            onCancel={() => {
+              setPendingGoal(null);
+              setWarningModalVisible(false);
+            }}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );

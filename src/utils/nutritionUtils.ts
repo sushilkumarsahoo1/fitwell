@@ -10,7 +10,7 @@ export const calculateMacrosFromCalories = (
   calories: number,
   proteinPercentage: number = 30,
   carbsPercentage: number = 40,
-  fatsPercentage: number = 30
+  fatsPercentage: number = 30,
 ): MacroBreakdown => {
   const proteinCals = (calories * proteinPercentage) / 100;
   const carbsCals = (calories * carbsPercentage) / 100;
@@ -35,7 +35,7 @@ export const calculateBMR = (
   weight: number,
   height: number,
   age: number,
-  gender: "male" | "female" | "other"
+  gender: "male" | "female" | "other",
 ): number => {
   // Mifflin-St Jeor Formula
   let bmr: number;
@@ -51,24 +51,92 @@ export const calculateBMR = (
 
 export const calculateTDEE = (
   bmr: number,
-  activityMultiplier: number
+  activityMultiplier: number,
 ): number => {
   return Math.round(bmr * activityMultiplier);
 };
 
+export type FitnessGoal =
+  | "maintain"
+  | "mild_loss"
+  | "normal_loss"
+  | "extreme_loss"
+  | "mild_gain"
+  | "normal_gain"
+  | "extreme_gain"
+  | "lose_fat"
+  | "gain_muscle"; // Legacy support
+
+export interface GoalMetrics {
+  calorieTarget: number;
+  weeklyWeightChange: number;
+  deficitOrSurplus: number;
+  percentage: number;
+}
+
 export const calculateAdjustedCalories = (
   tdee: number,
-  goal: "lose_fat" | "maintain" | "gain_muscle"
+  goal: FitnessGoal,
 ): number => {
   switch (goal) {
+    // Legacy support
     case "lose_fat":
-      return Math.round(tdee * 0.85); // 15% deficit
+      return Math.round(tdee * 0.79); // 21% deficit (0.5 kg/week)
     case "gain_muscle":
-      return Math.round(tdee * 1.1); // 10% surplus
+      return Math.round(tdee * 1.21); // 21% surplus (0.5 kg/week)
     case "maintain":
+      return tdee;
+    // New weight loss goals
+    case "mild_loss":
+      return Math.round(tdee * 0.9); // 10% deficit (~0.25 kg/week)
+    case "normal_loss":
+      return Math.round(tdee * 0.79); // 21% deficit (~0.5 kg/week)
+    case "extreme_loss":
+      return Math.round(tdee * 0.57); // 43% deficit (~1 kg/week)
+    // New weight gain goals
+    case "mild_gain":
+      return Math.round(tdee * 1.1); // 10% surplus (~0.25 kg/week)
+    case "normal_gain":
+      return Math.round(tdee * 1.21); // 21% surplus (~0.5 kg/week)
+    case "extreme_gain":
+      return Math.round(tdee * 1.43); // 43% surplus (~1 kg/week)
     default:
       return tdee;
   }
+};
+
+export const getGoalMetrics = (
+  tdee: number,
+  goal: FitnessGoal,
+): GoalMetrics => {
+  const calorieTarget = calculateAdjustedCalories(tdee, goal);
+  const deficitOrSurplus = calorieTarget - tdee;
+  const percentage = Math.round((calorieTarget / tdee) * 100);
+
+  let weeklyWeightChange = 0;
+  // 1 kg = ~7700 calories
+  const dailyDifference = Math.abs(deficitOrSurplus);
+  weeklyWeightChange = Math.round(((dailyDifference * 7) / 7700) * 100) / 100;
+
+  if (deficitOrSurplus < 0) {
+    weeklyWeightChange = -weeklyWeightChange; // Negative for loss
+  }
+
+  return {
+    calorieTarget,
+    weeklyWeightChange,
+    deficitOrSurplus,
+    percentage,
+  };
+};
+
+export const shouldShowGoalWarning = (
+  goal: FitnessGoal,
+  calories: number,
+): boolean => {
+  if (goal === "extreme_loss" && calories < 1500) return true;
+  if (goal === "extreme_gain" && calories > 3500) return true;
+  return false;
 };
 
 export const calculateDailyCalorieTarget = (
@@ -77,7 +145,7 @@ export const calculateDailyCalorieTarget = (
   age: number,
   gender: "male" | "female" | "other",
   activityLevel: string,
-  goal: "lose_fat" | "maintain" | "gain_muscle"
+  goal: FitnessGoal,
 ): number => {
   const activityMultipliers: Record<string, number> = {
     sedentary: 1.2,
@@ -106,7 +174,10 @@ export const formatPercentage = (value: number, total: number): string => {
   return `${Math.round((value / total) * 100)}%`;
 };
 
-export const getRemainingCalories = (consumed: number, target: number): number => {
+export const getRemainingCalories = (
+  consumed: number,
+  target: number,
+): number => {
   return Math.max(0, target - consumed);
 };
 
@@ -114,6 +185,9 @@ export const isCalorieGoalMet = (consumed: number, target: number): boolean => {
   return consumed >= target;
 };
 
-export const isCalorieGoalExceeded = (consumed: number, target: number): boolean => {
+export const isCalorieGoalExceeded = (
+  consumed: number,
+  target: number,
+): boolean => {
   return consumed > target * 1.1; // More than 10% over
 };

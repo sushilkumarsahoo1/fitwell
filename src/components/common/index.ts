@@ -1,6 +1,9 @@
+export { AnimatedCalorieDisplay } from "./AnimatedCalorieDisplay";
 export { Button } from "./Button";
-export { TextInput } from "./TextInput";
 export { Card } from "./Card";
+export { GoalSelector, type GoalOption, type GoalType } from "./GoalSelector";
+export { LoadingSpinner, Skeleton } from "./Loading";
 export { ProgressRing } from "./ProgressRing";
 export { StatBox } from "./StatBox";
-export { Skeleton, LoadingSpinner } from "./Loading";
+export { TextInput } from "./TextInput";
+

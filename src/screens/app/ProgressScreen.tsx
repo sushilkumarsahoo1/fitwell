@@ -5,6 +5,10 @@ import { useWeightLogs } from "@hooks/useTracking";
 import { supabase } from "@services/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { formatDate, getWeekStart } from "@utils/dateUtils";
+import {
+    calculateDailyCalorieTarget,
+    getGoalMetrics,
+} from "@utils/nutritionUtils";
 import React, { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -91,6 +95,38 @@ export const ProgressScreen: React.FC = () => {
     start: selectedPeriod === "week" ? weekStartStr : monthStartStr,
     end: selectedPeriod === "week" ? weekEndStr : monthEndStr,
   });
+
+  // Fetch goal change history
+  const { data: goalChangeHistory = [] } = useQuery({
+    queryKey: ["goalChangeHistory", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("goal_change_history")
+        .select("*")
+        .eq("user_id", user?.id || "")
+        .order("changed_at", { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Calculate maintenance calories for reference
+  const maintenanceCalories = profile
+    ? calculateDailyCalorieTarget(
+        profile.weight_kg,
+        profile.height_cm,
+        profile.age,
+        profile.gender,
+        profile.activity_level,
+        "maintain",
+      )
+    : 2000;
+
+  // Get current goal metrics
+  const currentGoalMetrics = profile?.fitness_goal
+    ? getGoalMetrics(maintenanceCalories, profile.fitness_goal as any)
+    : null;
 
   // Select data based on period
   const foodLogs = selectedPeriod === "week" ? weekFoodLogs : monthFoodLogs;
@@ -331,6 +367,206 @@ export const ProgressScreen: React.FC = () => {
           </View>
         </Card>
 
+        {/* Current Goal & Target */}
+        {currentGoalMetrics && (
+          <Card
+            title="Your Goal"
+            style={{
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ gap: 12 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: COLORS.neutral.text,
+                  }}
+                >
+                  Current Goal
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color: COLORS.primary,
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {profile?.fitness_goal?.replace(/_/g, " ")}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  borderTopWidth: 1,
+                  borderTopColor: COLORS.neutral.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: COLORS.neutral.text,
+                  }}
+                >
+                  Daily Calorie Target
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color: COLORS.primary,
+                  }}
+                >
+                  {currentGoalMetrics.calorieTarget} cal
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  borderTopWidth: 1,
+                  borderTopColor: COLORS.neutral.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: COLORS.neutral.text,
+                  }}
+                >
+                  Expected Weekly Change
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color:
+                      currentGoalMetrics.weeklyWeightChange > 0
+                        ? COLORS.warning
+                        : currentGoalMetrics.weeklyWeightChange < 0
+                          ? COLORS.success
+                          : COLORS.neutral.text,
+                  }}
+                >
+                  {currentGoalMetrics.weeklyWeightChange > 0 ? "+" : ""}
+                  {currentGoalMetrics.weeklyWeightChange} kg/week
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  borderTopWidth: 1,
+                  borderTopColor: COLORS.neutral.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: COLORS.neutral.text,
+                  }}
+                >
+                  Calorie{" "}
+                  {currentGoalMetrics.deficitOrSurplus < 0
+                    ? "Deficit"
+                    : "Surplus"}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color:
+                      currentGoalMetrics.deficitOrSurplus < 0
+                        ? COLORS.success
+                        : COLORS.warning,
+                  }}
+                >
+                  {Math.abs(currentGoalMetrics.deficitOrSurplus)} cal/day
+                </Text>
+              </View>
+            </View>
+          </Card>
+        )}
+
+        {/* Goal Change History */}
+        {goalChangeHistory.length > 0 && (
+          <Card
+            title="Goal Change History"
+            style={{
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ gap: 8 }}>
+              {goalChangeHistory.slice(0, 5).map((change, index) => (
+                <View
+                  key={change.id}
+                  style={{
+                    paddingVertical: 8,
+                    borderBottomWidth:
+                      index < goalChangeHistory.length - 1 ? 1 : 0,
+                    borderBottomColor: COLORS.neutral.border,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "600",
+                        color: COLORS.neutral.textDark,
+                      }}
+                    >
+                      {change.previous_goal?.replace(/_/g, " ")} →{" "}
+                      {change.new_goal?.replace(/_/g, " ")}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: COLORS.neutral.text,
+                      }}
+                    >
+                      {change.new_calorie_target} cal
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      color: COLORS.neutral.text,
+                    }}
+                  >
+                    {new Date(change.changed_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        )}
+
         {/* Insights */}
         <Card
           title="Insights"
@@ -481,6 +717,42 @@ export const ProgressScreen: React.FC = () => {
                   {periodStats.avgCalories} calories/day
                 </Text>
               </View>
+
+              {/* Goal Adherence */}
+              {currentGoalMetrics && (
+                <View
+                  style={{
+                    backgroundColor: "#E0F2F1",
+                    padding: 12,
+                    borderRadius: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: "#00695C",
+                      marginBottom: 4,
+                    }}
+                  >
+                    🎯 Goal Adherence
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: "#00695C",
+                    }}
+                  >
+                    {periodStats.avgCalories >
+                    currentGoalMetrics.calorieTarget + 100
+                      ? `You're consuming ${periodStats.avgCalories - currentGoalMetrics.calorieTarget} more calories than your goal. Consider adjusting portions.`
+                      : periodStats.avgCalories <
+                          currentGoalMetrics.calorieTarget - 100
+                        ? `You're consuming ${currentGoalMetrics.calorieTarget - periodStats.avgCalories} fewer calories than your goal. Make sure you're eating enough!`
+                        : `Perfect! You're following your goal of ${currentGoalMetrics.calorieTarget} cal/day very well.`}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </Card>
