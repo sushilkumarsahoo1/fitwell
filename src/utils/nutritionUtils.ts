@@ -88,14 +88,14 @@ export const calculateAdjustedCalories = (
       return tdee;
     // New weight loss goals
     case "mild_loss":
-      return Math.round(tdee * 0.9); // 10% deficit (~0.25 kg/week)
+      return Math.round(tdee * 0.89); // 11% deficit (~0.25 kg/week)
     case "normal_loss":
       return Math.round(tdee * 0.79); // 21% deficit (~0.5 kg/week)
     case "extreme_loss":
       return Math.round(tdee * 0.57); // 43% deficit (~1 kg/week)
     // New weight gain goals
     case "mild_gain":
-      return Math.round(tdee * 1.1); // 10% surplus (~0.25 kg/week)
+      return Math.round(tdee * 1.11); // 11% surplus (~0.25 kg/week)
     case "normal_gain":
       return Math.round(tdee * 1.21); // 21% surplus (~0.5 kg/week)
     case "extreme_gain":
@@ -114,9 +114,12 @@ export const getGoalMetrics = (
   const percentage = Math.round((calorieTarget / tdee) * 100);
 
   let weeklyWeightChange = 0;
-  // 1 kg = ~7700 calories
+  // 1 kg fat loss = ~7700 calories, 1 kg muscle gain = ~1500 calories
   const dailyDifference = Math.abs(deficitOrSurplus);
-  weeklyWeightChange = Math.round(((dailyDifference * 7) / 7700) * 100) / 100;
+  // Use different conversion factor for loss vs gain (fat vs lean mass)
+  const caloriesPerKg = deficitOrSurplus < 0 ? 7700 : 1500;
+  weeklyWeightChange =
+    Math.round(((dailyDifference * 7) / caloriesPerKg) * 100) / 100;
 
   if (deficitOrSurplus < 0) {
     weeklyWeightChange = -weeklyWeightChange; // Negative for loss

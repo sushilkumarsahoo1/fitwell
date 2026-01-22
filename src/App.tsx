@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@components/common";
 import { AuthProvider } from "@context/AuthContext";
 import { QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
@@ -11,9 +12,11 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <RootNavigator />
-          </AuthProvider>
+          <ErrorBoundary>
+            <AuthProvider>
+              <RootNavigator />
+            </AuthProvider>
+          </ErrorBoundary>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

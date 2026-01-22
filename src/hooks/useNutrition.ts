@@ -1,9 +1,9 @@
 import * as foodService from "@services/foodService";
 import { supabase } from "@services/supabase";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { UserProfile } from "@types/index";
 import { recordCacheHit, recordCacheMiss } from "@utils/foodUtils";
 import type { FitnessGoal } from "@utils/nutritionUtils";
+import type { Food, UserProfile } from "../types";
 
 export const useProfile = (userId: string) => {
   return useQuery({
@@ -205,14 +205,14 @@ export const useFoodDatabase = (
   offset: number = 0,
   limit: number = 1000,
 ) => {
-  return useQuery({
+  return useQuery<Food[]>({
     queryKey: ["foods", category, offset, limit],
     queryFn: async () => {
       // Optimization: Select only needed columns to reduce payload size
       let query = supabase
         .from("foods")
         .select(
-          "id,name,category,calories_per_serving,protein_g,carbs_g,fats_g",
+          "id,name,category,calories_per_serving,protein_g,carbs_g,fats_g,serving_size_g",
         )
         .eq("is_custom", false);
 
@@ -224,7 +224,7 @@ export const useFoodDatabase = (
       const { data, error } = await query.range(offset, offset + limit - 1);
 
       if (error) throw error;
-      return data || [];
+      return (data || []) as Food[];
     },
     // Aggressive caching: 10 minutes for food data (rarely changes)
     staleTime: 10 * 60 * 1000,

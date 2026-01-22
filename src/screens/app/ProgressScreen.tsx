@@ -9,8 +9,8 @@ import {
     calculateDailyCalorieTarget,
     getGoalMetrics,
 } from "@utils/nutritionUtils";
-import React, { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export const ProgressScreen: React.FC = () => {
@@ -35,7 +35,11 @@ export const ProgressScreen: React.FC = () => {
   const monthEndStr = formatDate(monthEnd);
 
   // Fetch period-based data
-  const { data: weekFoodLogs = [] } = useQuery({
+  const {
+    data: weekFoodLogs = [],
+    error: weekFoodLogsError,
+    isLoading: weekFoodLogsLoading,
+  } = useQuery({
     queryKey: ["periodFoodLogs", user?.id, weekStartStr, weekEndStr],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -44,12 +48,20 @@ export const ProgressScreen: React.FC = () => {
         .eq("user_id", user?.id || "")
         .gte("date", weekStartStr)
         .lte("date", weekEndStr);
+      if (error) {
+        console.error("[ProgressScreen] Error fetching week food logs:", error);
+        throw error;
+      }
       return data || [];
     },
     enabled: !!user?.id && selectedPeriod === "week",
   });
 
-  const { data: monthFoodLogs = [] } = useQuery({
+  const {
+    data: monthFoodLogs = [],
+    error: monthFoodLogsError,
+    isLoading: monthFoodLogsLoading,
+  } = useQuery({
     queryKey: ["periodFoodLogs", user?.id, monthStartStr, monthEndStr],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -58,12 +70,23 @@ export const ProgressScreen: React.FC = () => {
         .eq("user_id", user?.id || "")
         .gte("date", monthStartStr)
         .lte("date", monthEndStr);
+      if (error) {
+        console.error(
+          "[ProgressScreen] Error fetching month food logs:",
+          error,
+        );
+        throw error;
+      }
       return data || [];
     },
     enabled: !!user?.id && selectedPeriod === "month",
   });
 
-  const { data: weekWorkoutLogs = [] } = useQuery({
+  const {
+    data: weekWorkoutLogs = [],
+    error: weekWorkoutLogsError,
+    isLoading: weekWorkoutLogsLoading,
+  } = useQuery({
     queryKey: ["periodWorkoutLogs", user?.id, weekStartStr, weekEndStr],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -72,12 +95,23 @@ export const ProgressScreen: React.FC = () => {
         .eq("user_id", user?.id || "")
         .gte("date", weekStartStr)
         .lte("date", weekEndStr);
+      if (error) {
+        console.error(
+          "[ProgressScreen] Error fetching week workout logs:",
+          error,
+        );
+        throw error;
+      }
       return data || [];
     },
     enabled: !!user?.id && selectedPeriod === "week",
   });
 
-  const { data: monthWorkoutLogs = [] } = useQuery({
+  const {
+    data: monthWorkoutLogs = [],
+    error: monthWorkoutLogsError,
+    isLoading: monthWorkoutLogsLoading,
+  } = useQuery({
     queryKey: ["periodWorkoutLogs", user?.id, monthStartStr, monthEndStr],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -86,6 +120,13 @@ export const ProgressScreen: React.FC = () => {
         .eq("user_id", user?.id || "")
         .gte("date", monthStartStr)
         .lte("date", monthEndStr);
+      if (error) {
+        console.error(
+          "[ProgressScreen] Error fetching month workout logs:",
+          error,
+        );
+        throw error;
+      }
       return data || [];
     },
     enabled: !!user?.id && selectedPeriod === "month",
@@ -96,37 +137,93 @@ export const ProgressScreen: React.FC = () => {
     end: selectedPeriod === "week" ? weekEndStr : monthEndStr,
   });
 
-  // Fetch goal change history
-  const { data: goalChangeHistory = [] } = useQuery({
-    queryKey: ["goalChangeHistory", user?.id],
+  // Fetch goal change history with period filtering
+  const {
+    data: goalChangeHistory = [],
+    error: goalHistoryError,
+    isLoading: goalHistoryLoading,
+  } = useQuery({
+    queryKey: [
+      "goalChangeHistory",
+      user?.id,
+      selectedPeriod,
+      weekStartStr,
+      monthStartStr,
+    ],
     queryFn: async () => {
+      const startDate =
+        selectedPeriod === "week" ? weekStartStr : monthStartStr;
+      const endDate = selectedPeriod === "week" ? weekEndStr : monthEndStr;
+
       const { data, error } = await supabase
         .from("goal_change_history")
         .select("*")
         .eq("user_id", user?.id || "")
+        .gte("changed_at", startDate)
+        .lte("changed_at", endDate)
         .order("changed_at", { ascending: false })
         .limit(10);
+
+      if (error) {
+        if (error.code === "42P01") {
+          console.warn(
+            "[ProgressScreen] goal_change_history table missing. Returning empty history.",
+          );
+          return [];
+        }
+        console.error("[ProgressScreen] Error fetching goal history:", error);
+        throw error;
+      }
       return data || [];
     },
     enabled: !!user?.id,
   });
 
-  // Calculate maintenance calories for reference
-  const maintenanceCalories = profile
-    ? calculateDailyCalorieTarget(
-        profile.weight_kg,
-        profile.height_cm,
-        profile.age,
-        profile.gender,
-        profile.activity_level,
-        "maintain",
-      )
-    : 2000;
+  useEffect(() => {
+    const dataError =
+      weekFoodLogsError ||
+      monthFoodLogsError ||
+      weekWorkoutLogsError ||
+      monthWorkoutLogsError ||
+      goalHistoryError;
 
-  // Get current goal metrics
-  const currentGoalMetrics = profile?.fitness_goal
-    ? getGoalMetrics(maintenanceCalories, profile.fitness_goal as any)
-    : null;
+    if (dataError) {
+      Alert.alert(
+        "Data Load Error",
+        "We couldn't load your progress data. Please try again.",
+      );
+    }
+  }, [
+    weekFoodLogsError,
+    monthFoodLogsError,
+    weekWorkoutLogsError,
+    monthWorkoutLogsError,
+    goalHistoryError,
+  ]);
+
+  // Calculate maintenance calories for reference with validation
+  const maintenanceCalories =
+    profile &&
+    profile.weight_kg &&
+    profile.height_cm &&
+    profile.age &&
+    profile.gender &&
+    profile.activity_level
+      ? calculateDailyCalorieTarget(
+          profile.weight_kg,
+          profile.height_cm,
+          profile.age,
+          profile.gender,
+          profile.activity_level,
+          "maintain",
+        )
+      : null;
+
+  // Get current goal metrics (only if we have valid maintenanceCalories)
+  const currentGoalMetrics =
+    profile?.fitness_goal && maintenanceCalories
+      ? getGoalMetrics(maintenanceCalories, profile.fitness_goal as any)
+      : null;
 
   // Select data based on period
   const foodLogs = selectedPeriod === "week" ? weekFoodLogs : monthFoodLogs;
@@ -144,11 +241,9 @@ export const ProgressScreen: React.FC = () => {
       (sum, log) => sum + (log.calories || 0),
       0,
     );
-    const avgDailyCalories =
-      selectedPeriod === "week"
-        ? totalCaloriesConsumed / 7
-        : totalCaloriesConsumed /
-          new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    // Calculate using actual days with logs instead of fixed period days
+    const daysWithLogs = new Set(foodLogs.map((log) => log.date)).size;
+    const avgDailyCalories = totalCaloriesConsumed / Math.max(daysWithLogs, 1);
 
     // Calculate weight change if data available
     const sortedWeights = [...weightLogs].sort(
@@ -174,6 +269,7 @@ export const ProgressScreen: React.FC = () => {
       workouts: totalWorkouts,
       caloriesBurned: totalCaloriesBurned,
       avgCalories: Math.round(avgDailyCalories),
+      daysWithLogs,
       totalCaloriesConsumed,
       weightChange: Math.round(weightChange * 10) / 10,
       avgWorkoutsPerDay: parseFloat(avgWorkoutsPerDay),
@@ -719,7 +815,7 @@ export const ProgressScreen: React.FC = () => {
               </View>
 
               {/* Goal Adherence */}
-              {currentGoalMetrics && (
+              {currentGoalMetrics && maintenanceCalories && (
                 <View
                   style={{
                     backgroundColor: "#E0F2F1",
@@ -743,13 +839,15 @@ export const ProgressScreen: React.FC = () => {
                       color: "#00695C",
                     }}
                   >
-                    {periodStats.avgCalories >
-                    currentGoalMetrics.calorieTarget + 100
-                      ? `You're consuming ${periodStats.avgCalories - currentGoalMetrics.calorieTarget} more calories than your goal. Consider adjusting portions.`
-                      : periodStats.avgCalories <
-                          currentGoalMetrics.calorieTarget - 100
-                        ? `You're consuming ${currentGoalMetrics.calorieTarget - periodStats.avgCalories} fewer calories than your goal. Make sure you're eating enough!`
-                        : `Perfect! You're following your goal of ${currentGoalMetrics.calorieTarget} cal/day very well.`}
+                    {periodStats.daysWithLogs < 3
+                      ? `Log at least 3 days of meals for accurate goal insights. You've logged ${periodStats.daysWithLogs} days so far.`
+                      : periodStats.avgCalories >
+                          currentGoalMetrics.calorieTarget + 100
+                        ? `You're consuming ${periodStats.avgCalories - currentGoalMetrics.calorieTarget} more calories than your goal. Consider adjusting portions.`
+                        : periodStats.avgCalories <
+                            currentGoalMetrics.calorieTarget - 100
+                          ? `You're consuming ${currentGoalMetrics.calorieTarget - periodStats.avgCalories} fewer calories than your goal. Make sure you're eating enough!`
+                          : `Perfect! You're following your goal of ${currentGoalMetrics.calorieTarget} cal/day very well.`}
                   </Text>
                 </View>
               )}

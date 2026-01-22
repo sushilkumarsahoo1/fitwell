@@ -1,6 +1,7 @@
 export { AnimatedCalorieDisplay } from "./AnimatedCalorieDisplay";
 export { Button } from "./Button";
 export { Card } from "./Card";
+export { ErrorBoundary } from "./ErrorBoundary";
 export { GoalSelector, type GoalOption, type GoalType } from "./GoalSelector";
 export { LoadingSpinner, Skeleton } from "./Loading";
 export { ProgressRing } from "./ProgressRing";

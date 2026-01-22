@@ -1,14 +1,12 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
-import { useAuth } from "@context/AuthContext";
 import { Button } from "@components/common";
-import { ACTIVITY_LEVELS } from "@constants/index";
-import { COLORS } from "@constants/index";
+import { ACTIVITY_LEVELS, COLORS } from "@constants/index";
+import { useAuth } from "@context/AuthContext";
+import {
+    calculateDailyCalorieTarget,
+    getGoalMetrics,
+} from "@utils/nutritionUtils";
+import React, { useState } from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 interface ActivityLevelScreenProps {
   onSuccess?: () => void;
@@ -26,17 +24,27 @@ export const ActivityLevelScreen: React.FC<ActivityLevelScreenProps> = ({
     setLoading(true);
     try {
       const selectedActivityLevel = ACTIVITY_LEVELS.find(
-        (level) => level.id === selectedLevel
+        (level) => level.id === selectedLevel,
       );
 
       if (profile && selectedActivityLevel) {
-        const adjustedCalories = Math.round(
-          profile.daily_calorie_target * (selectedActivityLevel.multiplier / 1.55)
+        const maintenanceCalories = calculateDailyCalorieTarget(
+          profile.weight_kg,
+          profile.height_cm,
+          profile.age,
+          profile.gender,
+          selectedLevel as any,
+          "maintain",
         );
+
+        const goalTarget = getGoalMetrics(
+          maintenanceCalories,
+          (profile.fitness_goal as any) || "maintain",
+        ).calorieTarget;
 
         await updateProfile({
           activity_level: selectedLevel,
-          daily_calorie_target: adjustedCalories,
+          daily_calorie_target: goalTarget,
         } as any);
       }
 
@@ -91,8 +99,7 @@ export const ActivityLevelScreen: React.FC<ActivityLevelScreenProps> = ({
                 selectedLevel === level.id
                   ? COLORS.primary
                   : COLORS.neutral.border,
-              backgroundColor:
-                selectedLevel === level.id ? "#f0f9ff" : "white",
+              backgroundColor: selectedLevel === level.id ? "#f0f9ff" : "white",
             }}
           >
             <Text

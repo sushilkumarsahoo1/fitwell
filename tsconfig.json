@@ -14,8 +14,15 @@
       "@services/*": ["./src/services/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx"
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": [
+    "node_modules",
+    "image-recognition-archive/**",
+    "src/screens/app/FoodRecognitionScreen.tsx",
+    "src/screens/app/FoodRecognitionScreen_New.tsx",
+    "src/screens/app/FoodRecognitionScreen.tsx.bak",
+    "test-*.ts",
+    "**/*.bak",
+    "**/*.backup"
   ]
 }

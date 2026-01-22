@@ -1,6 +1,6 @@
 import { supabase } from "@services/supabase";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Habit, HabitLog, WaterLog, WeightLog } from "@types/index";
+import type { Habit, HabitLog, WaterLog, WeightLog } from "../types";
 
 // Weight Tracking
 export const useWeightLogs = (

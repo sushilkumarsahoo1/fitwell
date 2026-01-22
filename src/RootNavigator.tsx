@@ -33,7 +33,7 @@ const AuthStack = () => {
       }}
     >
       {authScreen === "signin" ? (
-        <Stack.Screen name="SignIn" options={{ animationEnabled: false }}>
+        <Stack.Screen name="SignIn">
           {() => (
             <SignInScreen
               onSuccess={() => setAuthScreen("signin")}
@@ -42,7 +42,7 @@ const AuthStack = () => {
           )}
         </Stack.Screen>
       ) : (
-        <Stack.Screen name="SignUp" options={{ animationEnabled: false }}>
+        <Stack.Screen name="SignUp">
           {() => (
             <SignUpScreen
               onSuccess={() => setAuthScreen("signin")}
@@ -67,20 +67,17 @@ const OnboardingStack = () => {
       }}
     >
       {step === "profile" && (
-        <Stack.Screen name="ProfileSetup" options={{ animationEnabled: false }}>
+        <Stack.Screen name="ProfileSetup">
           {() => <ProfileSetupScreen onSuccess={() => setStep("goal")} />}
         </Stack.Screen>
       )}
       {step === "goal" && (
-        <Stack.Screen name="FitnessGoal" options={{ animationEnabled: false }}>
+        <Stack.Screen name="FitnessGoal">
           {() => <FitnessGoalScreen onSuccess={() => setStep("activity")} />}
         </Stack.Screen>
       )}
       {step === "activity" && (
-        <Stack.Screen
-          name="ActivityLevel"
-          options={{ animationEnabled: false }}
-        >
+        <Stack.Screen name="ActivityLevel">
           {() => <ActivityLevelScreen onSuccess={() => setStep("profile")} />}
         </Stack.Screen>
       )}
@@ -95,7 +92,6 @@ const AppStack = () => {
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.neutral.text,
-        sceneContainerStyle: { flex: 1 },
         tabBarStyle: {
           borderTopColor: COLORS.neutral.border,
           backgroundColor: "white",
@@ -178,6 +174,17 @@ const LoadingScreen = () => (
 export const RootNavigator: React.FC = () => {
   const { isAuthenticated, profile, loading, profileFetched } = useAuth();
 
+  const isProfileComplete = !!(
+    profile &&
+    profile.name &&
+    profile.age &&
+    profile.height_cm &&
+    profile.weight_kg &&
+    profile.gender &&
+    profile.activity_level &&
+    profile.fitness_goal
+  );
+
   if (loading || (isAuthenticated && !profileFetched)) {
     return (
       <NavigationContainer>
@@ -196,23 +203,11 @@ export const RootNavigator: React.FC = () => {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
-          <Stack.Screen
-            name="Auth"
-            component={AuthStack}
-            options={{ animationEnabled: false }}
-          />
-        ) : !profile ? (
-          <Stack.Screen
-            name="Onboarding"
-            component={OnboardingStack}
-            options={{ animationEnabled: false }}
-          />
+          <Stack.Screen name="Auth" component={AuthStack} />
+        ) : !isProfileComplete ? (
+          <Stack.Screen name="Onboarding" component={OnboardingStack} />
         ) : (
-          <Stack.Screen
-            name="App"
-            component={AppStack}
-            options={{ animationEnabled: false }}
-          />
+          <Stack.Screen name="App" component={AppStack} />
         )}
       </Stack.Navigator>
     </NavigationContainer>

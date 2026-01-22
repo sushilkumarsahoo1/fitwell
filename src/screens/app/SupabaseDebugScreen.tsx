@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { View, ScrollView, Alert } from "react-native";
-import { supabaseTests } from "@utils/supabaseTests";
 import { Button } from "@components/common/Button";
+import { supabaseTests } from "@utils/supabaseTests";
+import React, { useState } from "react";
+import { Alert, ScrollView, Text, View } from "react-native";
 
 /**
  * Hidden debug screen for testing Supabase integration
@@ -39,25 +39,23 @@ export const SupabaseDebugScreen: React.FC = () => {
     <ScrollView style={{ flex: 1, backgroundColor: "#fff", padding: 16 }}>
       <View style={{ marginTop: 20, marginBottom: 20 }}>
         <Button
+          title={loading ? "Running Tests..." : "Run Supabase Tests"}
           variant="primary"
           size="medium"
           onPress={handleRunTests}
           disabled={loading}
-        >
-          {loading ? "Running Tests..." : "Run Supabase Tests"}
-        </Button>
+        />
       </View>
 
       {results.length > 0 && (
         <View>
           <View style={{ marginBottom: 16 }}>
             <Button
+              title="Clear Results"
               variant="secondary"
               size="small"
               onPress={handleClearResults}
-            >
-              Clear Results
-            </Button>
+            />
           </View>
 
           {results.map((result, index) => (
@@ -120,5 +118,4 @@ export const SupabaseDebugScreen: React.FC = () => {
   );
 };
 
-import { Text } from "react-native";
 export default SupabaseDebugScreen;

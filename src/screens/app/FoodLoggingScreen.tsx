@@ -2,13 +2,13 @@ import { Button, Card, LoadingSpinner, TextInput } from "@components/common";
 import { COLORS, FOOD_CATEGORIES, MEAL_TYPES } from "@constants/index";
 import { useAuth } from "@context/AuthContext";
 import {
-  useAddFoodLog,
-  useDailyFoodLogs,
-  useDeleteFoodLog,
-  useFoodDatabase,
-  useGetFoodDetails,
-  useLogUSDAFood,
-  useSearchFoods,
+    useAddFoodLog,
+    useDailyFoodLogs,
+    useDeleteFoodLog,
+    useFoodDatabase,
+    useGetFoodDetails,
+    useLogUSDAFood,
+    useSearchFoods,
 } from "@hooks/useNutrition";
 import { useNavigation } from "@react-navigation/native";
 import { extractNutrition } from "@services/foodService";
@@ -17,12 +17,12 @@ import { convertToGrams, type QuantityUnit } from "@utils/foodUtils";
 import { calculateDailyCalorieTarget } from "@utils/nutritionUtils";
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Modal,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -119,6 +119,15 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
       const carbs = Math.round(parseFloat(manualCarbs) * 10) / 10;
       const fats = Math.round(parseFloat(manualFats) * 10) / 10;
 
+      if (
+        [weight, calories, protein, carbs, fats].some(
+          (value) => Number.isNaN(value) || value < 0,
+        )
+      ) {
+        Alert.alert("Error", "Please enter valid numeric values");
+        return;
+      }
+
       await addFoodLog.mutateAsync({
         user_id: user.id,
         food_id: "00000000-0000-0000-0000-000000000002", // Placeholder UUID for manual foods
@@ -157,6 +166,10 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
     setLoading(true);
     try {
       const qty = parseFloat(quantity);
+      if (Number.isNaN(qty) || qty <= 0) {
+        Alert.alert("Error", "Please enter a valid quantity");
+        return;
+      }
       // Calculate serving multiplier: if food serving is 100g and user enters 100g, multiplier is 1
       // If user enters 200g with 100g serving size, multiplier is 2
       const servingMultiplier = qty / (food.serving_size_g || 100);
@@ -205,6 +218,11 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
 
     setLoading(true);
     try {
+      const qty = parseFloat(quantity);
+      if (Number.isNaN(qty) || qty <= 0) {
+        Alert.alert("Error", "Please enter a valid quantity");
+        return;
+      }
       console.log("[FoodLoggingScreen] Starting to log USDA food:", {
         food: selectedFoodDetails.description,
         fdcId: selectedFoodDetails.fdcId,
@@ -214,10 +232,7 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
       });
 
       // Convert quantity to grams for USDA API (which uses per-100g)
-      const quantityInGrams = convertToGrams(
-        parseFloat(quantity),
-        quantityUnit,
-      );
+      const quantityInGrams = convertToGrams(qty, quantityUnit);
 
       console.log("[FoodLoggingScreen] Quantity in grams:", quantityInGrams);
 
@@ -231,7 +246,7 @@ export const FoodLoggingScreen: React.FC<FoodLoggingScreenProps> = () => {
         userId: user.id,
         foodName: selectedFoodDetails.description,
         fdcId: selectedFoodDetails.fdcId,
-        quantity: parseFloat(quantity),
+        quantity: qty,
         quantityUnit,
         mealType: selectedMeal as "breakfast" | "lunch" | "dinner" | "snack",
         date,

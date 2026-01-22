@@ -97,9 +97,8 @@ interface CachedFood extends USDAFoodDetails {
 const USDA_API_BASE = "https://api.nal.usda.gov/fdc/v1/foods";
 
 // The API key for USDA FoodData Central API
-// This is from app.json extra section or hardcoded value
-// Note: This is a public API key and is safe to include in the app
-const USDA_API_KEY = "E2WpkwatJoL2sT1T4PUgqFDxyWj8UU1oO5R0t3pj";
+// Provide via EXPO_PUBLIC_USDA_API_KEY in .env
+const USDA_API_KEY = process.env.EXPO_PUBLIC_USDA_API_KEY ?? "";
 
 // Log API key status for debugging
 if (USDA_API_KEY) {
@@ -110,6 +109,7 @@ if (USDA_API_KEY) {
   console.warn(
     "[FoodService] USDA API key not configured. " +
       "USDA food search will not work. " +
+      "Set EXPO_PUBLIC_USDA_API_KEY in .env. " +
       "Get a free key at: https://fdc.nal.usda.gov/api-key-signup.html",
   );
 }
@@ -229,7 +229,7 @@ export async function searchFoods(
     // Check if API key is configured
     if (!USDA_API_KEY) {
       throw new Error(
-        "USDA API key not configured. Please set EXPO_PUBLIC_USDA_API_KEY in app.json extra section. " +
+        "USDA API key not configured. Please set EXPO_PUBLIC_USDA_API_KEY in .env. " +
           "Get a free key at: https://fdc.nal.usda.gov/api-key-signup.html",
       );
     }

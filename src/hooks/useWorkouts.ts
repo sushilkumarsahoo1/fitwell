@@ -1,7 +1,7 @@
 import { supabase } from "@services/supabase";
 import * as workoutService from "@services/workoutService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Workout, WorkoutLog } from "@types/index";
+import type { Workout, WorkoutLog } from "../types";
 
 export const useWorkoutTemplates = (userId: string) => {
   return useQuery({

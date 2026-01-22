@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@services/supabase";
-import type { AuthState, User, UserProfile } from "@types/index";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import type { AuthState, User, UserProfile } from "../types";
 
 interface AuthContextType extends AuthState {
   signUp: (email: string, password: string) => Promise<void>;
@@ -38,8 +38,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (session?.user) {
         // Verify the user still exists in auth
-        const { data: authUser, error: userError } = await supabase.auth.getUser();
-        
+        const { data: authUser, error: userError } =
+          await supabase.auth.getUser();
+
         if (userError || !authUser?.user) {
           // User deleted or session invalid - sign out
           await supabase.auth.signOut();
@@ -156,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchProfile = async (userId?: string) => {
     try {
       const targetUserId = userId || user?.id;
-      
+
       if (!targetUserId) {
         // No user ID available: mark as fetched to prevent infinite loading
         setProfileFetched(true);
@@ -184,10 +185,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateProfile = async (profileData: Partial<UserProfile>) => {
     try {
-      if (!user) throw new Error("No user logged in");
-      if (!user.id) throw new Error("User ID not set - cannot create profile");
+      const { data: authUserData, error: authUserError } =
+        await supabase.auth.getUser();
 
-      console.log("Creating/updating profile for user:", user.id);
+      if (authUserError || !authUserData?.user) {
+        throw new Error("No authenticated user - cannot create profile");
+      }
+
+      const currentUserId = authUserData.user.id;
+
+      if (!user || user.id !== currentUserId) {
+        setUser({
+          id: currentUserId,
+          email: authUserData.user.email || "",
+          created_at: authUserData.user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        setIsAuthenticated(true);
+      }
+
+      console.log("Creating/updating profile for user:", currentUserId);
+
+      let existingProfile: UserProfile | null = null;
+      const { data: existingData, error: existingError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", currentUserId)
+        .single();
+
+      if (existingError && existingError.code !== "PGRST116") {
+        throw existingError;
+      }
+
+      if (existingData) {
+        existingProfile = existingData as UserProfile;
+      }
+
+      const mergedProfile = {
+        ...(existingProfile || profile || {}),
+        ...profileData,
+      };
 
       // UPSERT: Insert if not exists, update if exists
       const { data, error } = await supabase
@@ -195,15 +232,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         .upsert(
           [
             {
-              user_id: user.id,
-              fitness_goal: profileData.fitness_goal || "maintain",
-              activity_level: profileData.activity_level || "moderate",
-              daily_calorie_target: profileData.daily_calorie_target || 2000,
-              ...profileData,
+              user_id: currentUserId,
+              ...mergedProfile,
+              fitness_goal: mergedProfile.fitness_goal || "maintain",
+              activity_level: mergedProfile.activity_level || "moderate",
+              daily_calorie_target: mergedProfile.daily_calorie_target || 2000,
               updated_at: new Date().toISOString(),
             },
           ],
-          { onConflict: "user_id" }
+          { onConflict: "user_id" },
         )
         .select();
 
@@ -212,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           code: error.code,
           message: error.message,
           details: error.details,
-          user_id: user.id,
+          user_id: currentUserId,
         });
         throw error;
       }

@@ -72,7 +72,7 @@ Users could search for and find USDA foods, but when they tried to log them, the
 ✅ [FoodService] Using placeholder food_id for USDA food
 ✅ [FoodService] Food logged successfully: {
   "id": "17912ce5-3d12-47b5-af0d-11b2e0c0072f",
-  "user_id": "e9eabf16-fe71-41f8-9cd7-3e4bb6b44712",
+   "user_id": "<USER_ID>",
   "food_id": "00000000-0000-0000-0000-000000000001",
   "fdc_id": "2077766",
   "food_name": "RICE",
