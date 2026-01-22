@@ -4,6 +4,8 @@
 node_modules/
 
 # environment variables (contain sensitive credentials)
+.env
+.env.*
 .env.local
 .env.local.backup
 
