@@ -65,6 +65,28 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
     }
   };
 
+  // Clear general error when user modifies input
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    if (errors.general) {
+      setErrors((prev) => ({ ...prev, general: "" }));
+    }
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    if (errors.general) {
+      setErrors((prev) => ({ ...prev, general: "" }));
+    }
+  };
+
+  const handleConfirmPasswordChange = (value: string) => {
+    setConfirmPassword(value);
+    if (errors.general) {
+      setErrors((prev) => ({ ...prev, general: "" }));
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -118,7 +140,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
           label="Email"
           placeholder="you@example.com"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={handleEmailChange}
           error={errors.email}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -128,7 +150,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
           label="Password"
           placeholder="Secure password"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={handlePasswordChange}
           error={errors.password}
           secureTextEntry
         />
@@ -137,7 +159,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
           label="Confirm Password"
           placeholder="Re-enter password"
           value={confirmPassword}
-          onChangeText={setConfirmPassword}
+          onChangeText={handleConfirmPasswordChange}
           error={errors.confirmPassword}
           secureTextEntry
         />

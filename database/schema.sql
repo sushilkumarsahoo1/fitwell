@@ -34,6 +34,30 @@ CREATE POLICY "Users can update own profile" ON profiles
 CREATE POLICY "Users can insert own profile" ON profiles
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- ==================== GOAL TRACKING ====================
+
+-- Goal change history (tracks when users change fitness goals)
+CREATE TABLE IF NOT EXISTS goal_change_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  previous_goal VARCHAR(50) NOT NULL,
+  new_goal VARCHAR(50) NOT NULL,
+  previous_calorie_target INTEGER,
+  new_calorie_target INTEGER NOT NULL,
+  changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_goal_change_history_user_id ON goal_change_history(user_id);
+CREATE INDEX idx_goal_change_history_profile_id ON goal_change_history(profile_id);
+ALTER TABLE goal_change_history ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own goal history" ON goal_change_history
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own goal history" ON goal_change_history
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
 -- ==================== FOODS & NUTRITION ====================
 
 -- Foods table (public database + custom user foods)

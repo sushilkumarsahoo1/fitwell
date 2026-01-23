@@ -147,20 +147,9 @@ async function ensureUSDAPlaceholderFoodExists(): Promise<void> {
       console.warn("[FoodService] Error checking placeholder:", checkError);
     }
 
-    // Get current user ID for insertion (required by RLS policy)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      console.warn(
-        "[FoodService] Cannot create placeholder - user not authenticated",
-      );
-      return;
-    }
-
     // Create the placeholder food entry
-    // Note: We insert as a custom food with user_id, which satisfies RLS policy
-    // The client-side code will treat it as a USDA food based on the logic
+    // Note: We insert as a PUBLIC food (is_custom = false, user_id = null)
+    // This allows all users to reference it for USDA food logging via RLS policy
     console.log("[FoodService] Creating USDA placeholder food entry...");
     const { data, error } = await supabase
       .from("foods")
@@ -173,8 +162,8 @@ async function ensureUSDAPlaceholderFoodExists(): Promise<void> {
         fats_g: 0,
         serving_size_g: 100,
         category: "global",
-        is_custom: true,
-        user_id: user.id,
+        is_custom: false,
+        user_id: null,
       })
       .select();
 
@@ -590,6 +579,9 @@ export function extractNutrition(
  */
 export async function logFoodToDatabase(entry: FoodLogEntry): Promise<any> {
   try {
+    // Ensure USDA placeholder food exists before attempting to insert
+    await ensureUSDAPlaceholderFoodExists();
+
     // Validate required fields
     if (!entry.user_id || !entry.food_name || !entry.fdc_id) {
       throw new Error("Missing required fields: user_id, food_name, or fdc_id");

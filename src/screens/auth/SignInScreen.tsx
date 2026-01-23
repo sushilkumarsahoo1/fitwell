@@ -59,6 +59,21 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     }
   };
 
+  // Clear general error when user modifies input
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    if (errors.general) {
+      setErrors((prev) => ({ ...prev, general: "" }));
+    }
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    if (errors.general) {
+      setErrors((prev) => ({ ...prev, general: "" }));
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -112,7 +127,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           label="Email"
           placeholder="you@example.com"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={handleEmailChange}
           error={errors.email}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -122,7 +137,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           label="Password"
           placeholder="Enter password"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={handlePasswordChange}
           error={errors.password}
           secureTextEntry
         />

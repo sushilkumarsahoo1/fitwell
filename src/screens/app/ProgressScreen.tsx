@@ -42,6 +42,9 @@ export const ProgressScreen: React.FC = () => {
   } = useQuery({
     queryKey: ["periodFoodLogs", user?.id, weekStartStr, weekEndStr],
     queryFn: async () => {
+      console.log(
+        `[ProgressScreen] Fetching week food logs for user ${user?.id} from ${weekStartStr} to ${weekEndStr}`,
+      );
       const { data, error } = await supabase
         .from("food_logs")
         .select("*")
@@ -52,9 +55,15 @@ export const ProgressScreen: React.FC = () => {
         console.error("[ProgressScreen] Error fetching week food logs:", error);
         throw error;
       }
+      console.log(
+        `[ProgressScreen] Week food logs returned: ${data?.length || 0} items`,
+        data,
+      );
       return data || [];
     },
     enabled: !!user?.id && selectedPeriod === "week",
+    staleTime: 0, // Ensure fresh data
+    gcTime: 5 * 60 * 1000,
   });
 
   const {
@@ -64,6 +73,9 @@ export const ProgressScreen: React.FC = () => {
   } = useQuery({
     queryKey: ["periodFoodLogs", user?.id, monthStartStr, monthEndStr],
     queryFn: async () => {
+      console.log(
+        `[ProgressScreen] Fetching month food logs for user ${user?.id} from ${monthStartStr} to ${monthEndStr}`,
+      );
       const { data, error } = await supabase
         .from("food_logs")
         .select("*")
@@ -77,9 +89,15 @@ export const ProgressScreen: React.FC = () => {
         );
         throw error;
       }
+      console.log(
+        `[ProgressScreen] Month food logs returned: ${data?.length || 0} items`,
+        data,
+      );
       return data || [];
     },
     enabled: !!user?.id && selectedPeriod === "month",
+    staleTime: 0, // Ensure fresh data
+    gcTime: 5 * 60 * 1000,
   });
 
   const {
@@ -89,6 +107,9 @@ export const ProgressScreen: React.FC = () => {
   } = useQuery({
     queryKey: ["periodWorkoutLogs", user?.id, weekStartStr, weekEndStr],
     queryFn: async () => {
+      console.log(
+        `[ProgressScreen] Fetching week workout logs for user ${user?.id} from ${weekStartStr} to ${weekEndStr}`,
+      );
       const { data, error } = await supabase
         .from("workout_logs")
         .select("*")
@@ -102,9 +123,15 @@ export const ProgressScreen: React.FC = () => {
         );
         throw error;
       }
+      console.log(
+        `[ProgressScreen] Week workout logs returned: ${data?.length || 0} items`,
+        data,
+      );
       return data || [];
     },
     enabled: !!user?.id && selectedPeriod === "week",
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
   });
 
   const {
@@ -114,6 +141,9 @@ export const ProgressScreen: React.FC = () => {
   } = useQuery({
     queryKey: ["periodWorkoutLogs", user?.id, monthStartStr, monthEndStr],
     queryFn: async () => {
+      console.log(
+        `[ProgressScreen] Fetching month workout logs for user ${user?.id} from ${monthStartStr} to ${monthEndStr}`,
+      );
       const { data, error } = await supabase
         .from("workout_logs")
         .select("*")
@@ -127,9 +157,15 @@ export const ProgressScreen: React.FC = () => {
         );
         throw error;
       }
+      console.log(
+        `[ProgressScreen] Month workout logs returned: ${data?.length || 0} items`,
+        data,
+      );
       return data || [];
     },
     enabled: !!user?.id && selectedPeriod === "month",
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
   });
 
   const { data: weightLogs = [] } = useWeightLogs(user?.id || "", {
@@ -232,6 +268,10 @@ export const ProgressScreen: React.FC = () => {
 
   // Calculate stats for period
   const periodStats = React.useMemo(() => {
+    console.log(
+      `[ProgressScreen] Calculating stats - Food logs: ${foodLogs.length}, Workout logs: ${workoutLogs.length}, Weight logs: ${weightLogs.length}`,
+    );
+
     const totalWorkouts = workoutLogs.length;
     const totalCaloriesBurned = workoutLogs.reduce(
       (sum, log) => sum + (log.calories_burned || 0),
@@ -244,6 +284,10 @@ export const ProgressScreen: React.FC = () => {
     // Calculate using actual days with logs instead of fixed period days
     const daysWithLogs = new Set(foodLogs.map((log) => log.date)).size;
     const avgDailyCalories = totalCaloriesConsumed / Math.max(daysWithLogs, 1);
+
+    console.log(
+      `[ProgressScreen] Stats: workouts=${totalWorkouts}, caloriesBurned=${totalCaloriesBurned}, caloriesConsumed=${totalCaloriesConsumed}, daysWithLogs=${daysWithLogs}`,
+    );
 
     // Calculate weight change if data available
     const sortedWeights = [...weightLogs].sort(
