@@ -1,16 +1,16 @@
+import { Button, TextInput } from "@components/common";
+import { COLORS } from "@constants/index";
+import { useAuth } from "@context/AuthContext";
+import { validateEmail } from "@utils/validationUtils";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableOpacity,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { useAuth } from "@context/AuthContext";
-import { Button, TextInput } from "@components/common";
-import { validateEmail } from "@utils/validationUtils";
-import { COLORS } from "@constants/index";
 
 interface SignInScreenProps {
   onSuccess?: () => void;

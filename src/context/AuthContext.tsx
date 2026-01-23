@@ -24,6 +24,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     bootstrapAsync();
+
+    // Listen to auth state changes from Supabase
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_OUT") {
+          setUser(null);
+          setProfile(null);
+          setIsAuthenticated(false);
+          setProfileFetched(false);
+        } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          if (session?.user) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email || "",
+              created_at: session.user.created_at || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+            setIsAuthenticated(true);
+            setProfileFetched(false);
+            await fetchProfile(session.user.id);
+          }
+        }
+      },
+    );
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
   }, []);
 
   const bootstrapAsync = async () => {
@@ -51,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        // User exists - set state and fetch profile
+        // User exists and is verified - set state and fetch profile
         setUser({
           id: authUser.user.id,
           email: authUser.user.email || "",
@@ -81,8 +109,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signUp = async (email: string, password: string) => {
     try {
       setLoading(true);
+      const normalizedEmail = email.trim().toLowerCase();
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
       });
 
@@ -96,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           updated_at: new Date().toISOString(),
         });
         setIsAuthenticated(true);
+        setProfileFetched(false);
         // Pass user ID directly to avoid race condition
         await fetchProfile(data.user.id);
       }
@@ -110,8 +140,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
+      const normalizedEmail = email.trim().toLowerCase();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
@@ -125,6 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           updated_at: new Date().toISOString(),
         });
         setIsAuthenticated(true);
+        setProfileFetched(false);
         // Pass user ID directly to avoid race condition
         await fetchProfile(data.user.id);
       }
@@ -139,13 +171,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signOut = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
+      // Clear state immediately before calling Supabase signOut
       setUser(null);
       setProfile(null);
       setIsAuthenticated(false);
       setProfileFetched(false);
+
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch (error) {
       console.error("Sign out error:", error);
       throw error;
